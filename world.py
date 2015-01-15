@@ -15,10 +15,6 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-coords2 = (9, 9)
-coords3 = (9, 9, 99)
-what = 'none'
-
 class BiomeData:
     """ A 16x16 byte array stored in each ChunkColumn """
 
@@ -32,11 +28,6 @@ class BiomeData:
 
     def unpack(self, buff):
         self.data = array.array('B', buff.unpack_raw(self.length))
-        global coords2
-        with open('dump/%+03d:%+03d-biome-data' % coords2, 'wb') as f:
-            self.data.tofile(f)
-        with open('dump/%+03d:%+03d-biome-remainder' % coords2, 'wb') as f:
-            f.write(buff.buff1)
 
     def pack(self):
         return self.data.tobytes()
@@ -63,11 +54,6 @@ class ChunkData:
 
     def unpack(self, buff):
         self.data = array.array('H', buff.unpack_raw(self.length * 2)) # H = short, *2 byte per short
-        global coords3
-        with open('dump/%+03d:%+03d:%+03d-chunk-data' % coords3, 'wb') as f:
-            self.data.tofile(f)
-        with open('dump/%+03d:%+03d:%+03d-chunk-remainder' % coords3, 'wb') as f:
-            f.write(buff.buff1)
 
     def pack(self):
         self.fill()
@@ -96,12 +82,6 @@ class ChunkDataNibble():
 
     def unpack(self, buff):
         self.data = array.array('B', buff.unpack_raw(self.length))
-        global coords3, what
-        args = (coords3[0], coords3[1], coords3[2], what)
-        with open('dump/%+03d:%+03d:%+03d-%s-nibble-data' % args, 'wb') as f:
-            self.data.tofile(f)
-        with open('dump/%+03d:%+03d:%+03d-%s-nibble-remainder' % args, 'wb') as f:
-            f.write(buff.buff1)
 
     def pack(self):
         self.fill()
@@ -157,17 +137,11 @@ class ChunkColumn:
 
     def unpack_data_array(self, buff, section, bitmask):
         # iterate over the bitmask
-        print '  unpacking section', section
-        before_buffer_len = buff.length()
         for i in range(16):
             if bitmask & (1 << i):
                 if self.sections[i] is None:
                     self.sections[i] = ChunkSection()
-                global coords2, coords3, what
-                coords3 = (coords2[0], coords2[1], i)
-                what = section
                 self.sections[i][section].unpack(buff)
-        print '  %d unpacked, %d remaining' % (before_buffer_len - buff.length(), buff.length())
 
 
 class World:
@@ -178,7 +152,6 @@ class World:
 
     def unpack(self, buff, coords, bitmask, ground_up_continuous, has_skylight=True):
         """ Unpack one column from the buffer """
-        print 'unpacking column % 3d:%- 3d with bitmask %s, full=%s sky=%s' % (coords[0], coords[1], bin(bitmask), ground_up_continuous, has_skylight)
         # grab/create relevant chunk column
         if coords in self.columns:
             column = self.columns[coords]
@@ -186,10 +159,7 @@ class World:
             column = self.columns[coords] = ChunkColumn()
 
         # unpack chunk column data
-        global coords2
-        coords2 = coords
         column.unpack(buff, bitmask, ground_up_continuous, has_skylight)
-        print '  done % 3d:%- 3d' % coords
 
     def get(self, x, y, z, key):
         x, rx = divmod(x, 16)

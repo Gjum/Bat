@@ -41,9 +41,9 @@ def dump_chunk_data(buff, sort, chunk_coords, ground_up_continuous, bitmask):
         f.write(buff.buff1)
 
 class GjumBotProtocol(ClientProtocol):
-    spawned = False
 
     def setup(self):
+        self.spawned = False
         self.coords = [0, 0, 0]
         self.yaw = 0
         self.pitch = 0
@@ -117,19 +117,14 @@ class GjumBotProtocol(ClientProtocol):
         ground_up_continuous = buff.unpack('?')
         bitmask = buff.unpack('H')
         size = buff.unpack_varint()
-        dump_chunk_data(buff, 'data', chunk_coords, ground_up_continuous, bitmask)
         skylight = True # assume not in Nether TODO
         self.world.unpack(buff, chunk_coords, bitmask, ground_up_continuous, skylight)
 
     @register("play", 0x26)
     def received_map_chunk_bulk(self, buff):
         """ received multiple full chunks """
-        packet_size = buff.length()
-        dump_chunk_data(buff, 'all', (0, 0), 0, 0)
         skylight = buff.unpack('?')
         column_count = buff.unpack_varint()
-        print 'received %d chunks, sky=%s' % (column_count, skylight)
-        print '  bytes=%d, header=%d' % (buff.length(), packet_size - buff.length())
         ground_up_continuous = True # according to protocol, full chunks are sent
         chunk_coords = []
         bitmask = []
@@ -138,7 +133,6 @@ class GjumBotProtocol(ClientProtocol):
             chunk_coords.append(buff.unpack('ii'))
             bitmask.append(buff.unpack('H'))
         for col in range(column_count):
-            print col, 'of', column_count, # last ',' for no line break
             self.world.unpack(buff, chunk_coords[col], bitmask[col], ground_up_continuous, skylight)
 
 
