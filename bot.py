@@ -62,6 +62,7 @@ class BotProtocol(ClientProtocol):
         self.yaw = 0
         self.pitch = 0
         self.world = World()
+        self.pathfind_to = None
 
     ##### Helper functions #####
 
@@ -82,22 +83,30 @@ class BotProtocol(ClientProtocol):
         self.send_player_digging(0, coords, face)
         self.send_player_digging(2, coords, face)
 
-    def walk_one_block(self, direction=None):
-        if direction is not None: self.direction = direction
-        self.direction %= 4
-        c = 0 if self.direction in (1, 3) else 2 # coordinate axis to move on
-        d = 1 if self.direction in (1, 2) else -1 # how far to move
+    def walk_one_block(self, direction):
+        direction %= 4
+        c = 0 if direction in (1, 3) else 2 # coordinate axis to move on
+        d = 1 if direction in (1, 2) else -1 # how far to move
         self.coords[c] += d
-        self.yaw = ((self.direction + 2) * 360 / 4) % 360
+        self.yaw = ((direction + 2) * 360 / 4) % 360
         self.pitch = 0
         self.send_player_position_and_look(self.coords, self.yaw, self.pitch)
 
     def pathfind(self, *args):
-        path = astar(self.coords, args[:3], self.world)
+        if self.pathfind_to is None: # only start if not already running
+            self.tasks.add_delay(0.05, self.pathfind_continue)
+        self.pathfind_to = args[:3]
+
+    def pathfind_continue(self):
+        if self.pathfind_to is None: return
+        path = astar(self.coords, self.pathfind_to, self.world)
         #print 'A* path from %s to %s: %s' % (self.coords, args[:3], path)
-        if len(path) > 1:
+        if len(path) <= 1:
+            # bot is at target or no path found
+            self.pathfind_to = None
+        else:
+            self.tasks.add_delay(0.05, self.pathfind_continue)
             self.send_player_position((path[1][0]+0.5, path[1][1], path[1][2]+0.5))
-            self.tasks.add_delay(0.05, self.pathfind, *args[:3])
 
     def on_command(self, cmd, *args):
         if cmd == '.path': self.pathfind(*args)
