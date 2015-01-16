@@ -47,7 +47,10 @@ class AStarNode:
 
     def try_add_neighbors(self, world, n_visited, n_open, finish_coords):
         """ Tries to add all adjacent blocks. """
-        for y in range(-1, 1): # TODO add larger numbers for dropping from low heights
+        # TODO add larger numbers for dropping from higher
+        # bot takes no damage and can move 100 blocks at once
+        # 10 just runs smoothly on my machine
+        for y in range(-1, 10):
             for x, z in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 new_node = AStarNode(self.c_add(x, y, z), self, finish_coords)
                 if new_node.is_valid(world) and new_node.is_unvisited(n_visited):
