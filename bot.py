@@ -13,6 +13,7 @@ packet_dict = {
             0x04: 'player position',
             0x05: 'player look',
             0x06: 'player position and look',
+            0x07: 'player digging',
         },
         'recv': {
             0x00: 'keep alive',
@@ -72,6 +73,15 @@ class BotProtocol(ClientProtocol):
                 info = '' if packet_id not in packet_dict['play'][prefix] else packet_dict['play'][prefix][packet_id]
                 print '%s %#02x %s' % (prefix, packet_id, info)
 
+    def dig_block(self, *args):
+        x, y, z = coords = map(int, args[:3])
+        faces = [( 0, -1,  0), ( 0,  1,  0), ( 0,  0, -1), ( 0,  0,  1), (-1,  0,  0), ( 1,  0,  0)]
+        for face, (dx, dy, dz) in enumerate(faces):
+            if self.world.get(x+dx, y+dy, z+dz, 'block_data') == 0:
+                break
+        self.send_player_digging(0, coords, face)
+        self.send_player_digging(2, coords, face)
+
     def walk_one_block(self, direction=None):
         if direction is not None: self.direction = direction
         self.direction %= 4
@@ -91,6 +101,7 @@ class BotProtocol(ClientProtocol):
 
     def on_command(self, cmd, *args):
         if cmd == '.path': self.pathfind(*args)
+        if cmd == '.dig': self.dig_block(*args)
         elif cmd == '.n': self.walk_one_block(0)
         elif cmd == '.e': self.walk_one_block(1)
         elif cmd == '.s': self.walk_one_block(2)
@@ -125,6 +136,14 @@ class BotProtocol(ClientProtocol):
             self.yaw,
             self.pitch,
             on_ground))
+
+    def send_player_digging(self, status, coords, face=1):
+        x, y, z = map(int, coords)
+        location = ((x & 0x3ffffff) << 38) | ((y & 0xFFF) << 26) | (z & 0x3ffffff)
+        self.send_packet(0x07, self.buff_type.pack('BQB',
+            status,
+            location,
+            face))
 
     ##### Network: receiving #####
 
