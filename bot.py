@@ -83,9 +83,11 @@ class BotProtocol(ClientProtocol):
         self.send_player_position_and_look(self.coords, self.yaw, self.pitch)
 
     def pathfind(self, *args):
-        print 'Finding path from %s to %s' % (self.coords, args[:3])
         path = astar(self.coords, args[:3], self.world)
-        print 'A* path:', path
+        #print 'A* path from %s to %s: %s' % (self.coords, args[:3], path)
+        if len(path) > 1:
+            self.send_player_position((path[1][0]+0.5, path[1][1], path[1][2]+0.5))
+            self.tasks.add_delay(0.05, self.pathfind, *args[:3])
 
     def on_command(self, cmd, *args):
         if cmd == '.path': self.pathfind(*args)
@@ -172,10 +174,10 @@ class BotProtocol(ClientProtocol):
         if not self.spawned:
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
+            print 'spawned!'
 
     @register("play", 0x21)
     def received_chunk_data(self, buff):
-        """ received single chunk """
         chunk_coords = buff.unpack('ii')
         ground_up_continuous = buff.unpack('?')
         bitmask = buff.unpack('H')
@@ -183,20 +185,40 @@ class BotProtocol(ClientProtocol):
         skylight = True # assume not in Nether TODO
         self.world.unpack(buff, chunk_coords, bitmask, ground_up_continuous, skylight)
 
+    @register("play", 0x22)
+    def received_multi_block_change(self, buff):
+        chunk_x, chunk_z = buff.unpack('ii')
+        block_count = buff.unpack_varint()
+        for i in range(block_count):
+            coord_bits = buff.unpack('H')
+            y = coord_bits & 0xff
+            z = (chunk_z * 16) + (coord_bits >> 8) & 0xf
+            x = (chunk_x * 16) + (coord_bits >> 12) & 0xf
+            data = buff.unpack_varint()
+            self.world.put(x, y, z, 'block_data', data)
+
+    @register("play", 0x23)
+    def received_block_change(self, buff):
+        location = buff.unpack('Q') # long long, 64bit
+        x = location >> 38
+        y = (location >> 26) & 0xfff
+        z = location & 0x3ffffff
+        data = buff.unpack_varint()
+        self.world.put(x, y, z, 'block_data', data)
+
     @register("play", 0x26)
     def received_map_chunk_bulk(self, buff):
-        """ received multiple full chunks """
         skylight = buff.unpack('?')
         column_count = buff.unpack_varint()
         ground_up_continuous = True # according to protocol, full chunks are sent
         chunk_coords = []
-        bitmask = []
+        bitmasks = []
         # unpack all meta info before data
         for col in range(column_count):
             chunk_coords.append(buff.unpack('ii'))
-            bitmask.append(buff.unpack('H'))
+            bitmasks.append(buff.unpack('H'))
         for col in range(column_count):
-            self.world.unpack(buff, chunk_coords[col], bitmask[col], ground_up_continuous, skylight)
+            self.world.unpack(buff, chunk_coords[col], bitmasks[col], ground_up_continuous, skylight)
 
     @register("play", 0x40)
     def received_disconnect(self, buff):
@@ -204,6 +226,7 @@ class BotProtocol(ClientProtocol):
 
         print 'Disconnected: %s' % reason
         self.close()
+        sys.exit(0)
 
 
 class BotFactory(ClientFactory):
