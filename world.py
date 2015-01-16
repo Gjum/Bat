@@ -113,7 +113,7 @@ class ChunkSection(dict):
 
     def __init__(self, **kwargs):
         super(ChunkSection, self).__init__(**kwargs)
-        self['block_id'] = ChunkData()
+        self['block_data'] = ChunkData()
         self['light_block'] = ChunkDataNibble()
         self['light_sky'] = ChunkDataNibble()
 
@@ -128,7 +128,7 @@ class ChunkColumn:
     def unpack(self, buff, bitmask, has_biome, has_skylight):
         # in the protocol, all arrays of the same data are packed sequentially
         # (i.e. attributes pertaining to the same chunk are *not* grouped)
-        self.unpack_data_array(buff, 'block_id',  bitmask)
+        self.unpack_data_array(buff, 'block_data',  bitmask)
         self.unpack_data_array(buff, 'light_block', bitmask)
         if has_skylight:
             self.unpack_data_array(buff, 'light_sky', bitmask)
@@ -162,9 +162,9 @@ class World:
         column.unpack(buff, bitmask, ground_up_continuous, has_skylight)
 
     def get(self, x, y, z, key):
-        x, rx = divmod(x, 16)
-        y, ry = divmod(y, 16)
-        z, rz = divmod(z, 16)
+        x, rx = divmod(int(x), 16)
+        y, ry = divmod(int(y), 16)
+        z, rz = divmod(int(z), 16)
 
         if not (x, z) in self.columns:
             return 0
@@ -176,9 +176,9 @@ class World:
         return chunk[key].get(rx, ry, rz)
 
     def put(self, x, y, z, key, data):
-        x, rx = divmod(x, 16)
-        y, ry = divmod(y, 16)
-        z, rz = divmod(z, 16)
+        x, rx = divmod(int(x), 16)
+        y, ry = divmod(int(y), 16)
+        z, rz = divmod(int(z), 16)
 
         if (x, z) in self.columns:
             column = self.columns[(x, z)]
@@ -192,8 +192,8 @@ class World:
         chunk[key].put(rx, ry, rz, data)
 
     def get_biome(self, x, z):
-        x, rx = divmod(x, 16)
-        z, rz = divmod(z, 16)
+        x, rx = divmod(int(x), 16)
+        z, rz = divmod(int(z), 16)
 
         if (x, z) not in self.columns:
             return 0
@@ -201,8 +201,8 @@ class World:
         return self.columns[(x, z)].biome.get(rx, rz)
 
     def set_biome(self, x, z, data):
-        x, rx = divmod(x, 16)
-        z, rz = divmod(z, 16)
+        x, rx = divmod(int(x), 16)
+        z, rz = divmod(int(z), 16)
 
         if (x, z) in self.columns:
             column = self.columns[(x, z)]
