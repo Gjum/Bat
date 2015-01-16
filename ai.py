@@ -50,25 +50,17 @@ class AStarNode:
         for y in range(-1, 1): # TODO add larger numbers for dropping from low heights
             for x, z in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 new_node = AStarNode(self.c_add(x, y, z), self, finish_coords)
-                print 'checking', new_node
-                if not new_node.is_valid(world):
-                    print '  invalid'
-                elif not new_node.is_unvisited(n_visited):
-                    print '  visited'
-                else:
+                if new_node.is_valid(world) and new_node.is_unvisited(n_visited):
                     for node in n_open:
                         if new_node.coords == node.coords:
-                            print '  exists:', node
                             # node exists, do not create new one
                             if new_node.prev_dist < node.prev_dist:
-                                print '    is better'
                                 # this node is better, replace old one
                                 node.prev_dist = new_node.prev_dist
                                 node.parent = new_node.parent
                                 # coords and estim_dist are the same
                             break
                     else: # this node is not already being checked
-                        print '  adding'
                         n_open.append(new_node)
 
     def better_than(self, other):
@@ -89,28 +81,23 @@ def astar(c_from, c_to, world):
     n_visited = []
 
     while True:
-        print 'n_open =', n_open
         # find node with shortest path
         best_i = len(n_open)-1
         best_n = n_open[-1]
         for i, iter_n in enumerate(n_open[:-1]):
             if iter_n.better_than(best_n):
-                print iter_n, 'is better than', best_n
                 best_i = i
                 best_n = iter_n
         node = n_open.pop(best_i)
-        print 'node =', node
         n_visited.append(node)
         # Are we done?
         if node.coords == finish.coords:
-            print 'found finish'
             break
         # not done, check neighbors
         node.try_add_neighbors(world, n_visited, n_open, finish_coords)
         if len(n_open) <= 0:
             # no path found, all accessible nodes checked
             return []
-        print
 
     path = []
     # build path by backtracing from finish to start, i.e. from -> to
