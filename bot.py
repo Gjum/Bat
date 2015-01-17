@@ -75,6 +75,9 @@ class BotProtocol(ClientProtocol):
                 print '%s %#02x %s' % (prefix, packet_id, info)
 
     def dig_block(self, *args):
+        if len(args) < 3:
+            print 'Not enough args for dig_block:', args
+            return
         x, y, z = coords = map(int, args[:3])
         faces = [( 0, -1,  0), ( 0,  1,  0), ( 0,  0, -1), ( 0,  0,  1), (-1,  0,  0), ( 1,  0,  0)]
         for face, (dx, dy, dz) in enumerate(faces):
@@ -93,6 +96,9 @@ class BotProtocol(ClientProtocol):
         self.send_player_position_and_look(self.coords, self.yaw, self.pitch)
 
     def pathfind(self, *args):
+        if len(args) < 3:
+            print 'Not enough args for pathfind:', args
+            return
         if self.pathfind_to is None: # only start if not already running
             self.tasks.add_delay(0.05, self.pathfind_continue)
         self.pathfind_to = args[:3]
@@ -254,7 +260,6 @@ class BotProtocol(ClientProtocol):
 
         print 'Disconnected: %s' % reason
         self.close()
-        sys.exit(0)
 
 
 class BotFactory(ClientFactory):
