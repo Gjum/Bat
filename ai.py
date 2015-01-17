@@ -22,18 +22,21 @@ class AStarNode:
         return 'Node(c=%s p=%s pd=%f ed=%f td=%f)' % (self.coords, (self.parent.coords if self.parent is not None else 'None'), self.prev_dist, self.estim_dist, self.prev_dist + self.estim_dist)
 
     def c_add(self, *coords):
-        """ Returns the vector sum of coords and self.coords. """
+        """ Returns the translation of coords by self.coords. """
         assert len(coords) == len(self.coords)
         return tuple([coords[i] + self.coords[i] for i in range(len(coords))])
 
     def is_valid(self, world):
         """ Should the node be checked later? """
-        # Can the bot walk here?
         get = lambda c: world.get(c[0], c[1], c[2], 'block_data')
+        # Can the bot stand here?
         if get(self.c_add(0, -1, 0)) == 0: return False
-        if get(self.c_add(0,  0, 0)) != 0: return False
-        if get(self.c_add(0,  1, 0)) != 0: return False
-        # TODO 3 blocks to stand in when jumping
+        # check air blocks above self when going down and horizontally
+        for dy in range(self.parent.coords[1] - self.coords[1] + 2):
+            if get(self.c_add(0, dy, 0)) != 0: return False
+        # check air blocks above parent when going up
+        for dy in range(self.coords[1] - self.parent.coords[1]):
+            if get(self.parent.c_add(0, dy+2, 0)) != 0: return False
         return True
 
     def is_unvisited(self, n_visited):
