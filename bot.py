@@ -63,7 +63,8 @@ class BotProtocol(ClientProtocol):
         self.pitch = 0
         self.world = World()
         self.digging_block = None
-        self.pathfind_to = None
+        self.pathfind_path = None
+        self.is_pathfinding = False
 
     ##### Helper functions #####
 
@@ -106,23 +107,38 @@ class BotProtocol(ClientProtocol):
         self.send_player_position_and_look(self.coords, self.yaw, self.pitch)
 
     def pathfind(self, *args):
+        """ Creates a path to the specified coordinates.
+        By calling pathfind_continue() every 0.05s, the bot follows the path.
+        The path gets updated in on_world_changed(). """
         if len(args) < 3:
             print 'Not enough args for pathfind:', args
             return
-        if self.pathfind_to is None: # only start if not already running
-            self.tasks.add_delay(0.05, self.pathfind_continue)
-        self.pathfind_to = args[:3]
+        target = args[:3]
+        self.pathfind_path = astar(self.coords, target, self.world)
+        if len(self.pathfind_path) <= 0:
+            print 'No path found'
+            self.pathfind_path = [target] # save for later
+            self.is_pathfinding = False
+        else:
+            self.pathfind_path.pop(0) # skip starting position
+            if not self.is_pathfinding:
+                self.is_pathfinding = True
+                self.pathfind_continue()
 
     def pathfind_continue(self):
-        if self.pathfind_to is None: return
-        path = astar(self.coords, self.pathfind_to, self.world)
-        #print 'A* path from %s to %s: %s' % (self.coords, args[:3], path)
-        if len(path) <= 1:
-            # bot is at target or no path found
-            self.pathfind_to = None
+        if not self.is_pathfinding: return
+        if self.pathfind_path is None: return
+        if len(self.pathfind_path) <= 0:
+            self.pathfind_path = None
+            self.is_pathfinding = False
         else:
-            self.tasks.add_delay(0.05, self.pathfind_continue)
-            self.send_player_position((path[1][0]+0.5, path[1][1], path[1][2]+0.5))
+            coord = self.pathfind_path.pop(0)
+            self.send_player_position((coord[0]+0.5, coord[1], coord[2]+0.5)) # +0.5: center bot on block
+            if len(self.pathfind_path) <= 0:
+                self.pathfind_path = None
+                self.is_pathfinding = False
+            else:
+                self.tasks.add_delay(0.05, self.pathfind_continue) # TODO test how fast the bot can go
 
     def on_command(self, cmd, *args):
         if cmd == '.path': self.pathfind(*args)
@@ -137,6 +153,11 @@ class BotProtocol(ClientProtocol):
             x, y, z = self.digging_block
             if self.world.get(x, y, z, 'block_data') == 0:
                 self.digging_block = None
+        if self.pathfind_path is not None and len(self.pathfind_path) > 0:
+            # recalculate, blocks may have changed
+            # TODO check if changed blocks are on path
+            self.pathfind(*self.pathfind_path[-1])
+
     ##### Network: sending #####
 
     def send_player_position(self, coords = None, on_ground = True):
