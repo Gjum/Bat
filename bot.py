@@ -5,8 +5,6 @@ from quarry.mojang.profile import Profile
 from world import World
 from ai import astar
 
-# 0b 42 1a 12
-
 packet_dict = {
     'play': {
         'send': {
@@ -41,6 +39,7 @@ packet_dict = {
             0x26: 'map chunk bulk',
 
             0x29: 'sound effect',
+            0x2c: 'global entity (thunderbolt)',
             0x2f: 'set slot',
             0x30: 'window items',
             0x33: 'update sign',
@@ -71,8 +70,20 @@ class BotProtocol(ClientProtocol):
     def log_packet(self, prefix, packet_id):
         """ overrides default logging """
         if self.protocol_mode == 'play':
-            if packet_id not in [0x00, 0x02, 0x03, 0x0f, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1c, 0x20, 0x26, 0x35, 0x37, 0x38, 0x40]:
-                prefix = prefix[2:]
+            prefix = prefix[2:]
+            ignored = {
+                    'send': [0x00, 0x01,
+                        0x04, 0x05, 0x06, 0x07],
+                    'recv': [0x00, 0x01, 0x02, 0x03, 0x04,
+                        0x08, 0x09, 0x0a, 0x0b,
+                        0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+                        0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
+                        0x28, 0x29, 0x2a,
+                        0x35, 0x37, 0x38,
+                        0x40],
+                    # [0x00, 0x02, 0x03, 0x0b, 0x0f, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1c, 0x20, 0x26, 0x29, 0x35, 0x37, 0x38, 0x40]
+            }
+            if packet_id not in ignored[prefix]:
                 info = '' if packet_id not in packet_dict['play'][prefix] else packet_dict['play'][prefix][packet_id]
                 print '%s %#02x %s' % (prefix, packet_id, info)
 
