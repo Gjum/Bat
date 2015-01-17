@@ -62,6 +62,7 @@ class BotProtocol(ClientProtocol):
         self.yaw = 0
         self.pitch = 0
         self.world = World()
+        self.digging_block = None
         self.pathfind_to = None
 
     ##### Helper functions #####
@@ -79,10 +80,19 @@ class BotProtocol(ClientProtocol):
             print 'Not enough args for dig_block:', args
             return
         x, y, z = coords = map(int, args[:3])
-        faces = [( 0, -1,  0), ( 0,  1,  0), ( 0,  0, -1), ( 0,  0,  1), (-1,  0,  0), ( 1,  0,  0)]
+        if self.digging_block is not None:
+            print 'Already digging a block, aborting' # TODO queue?
+            return
+        if self.world.get(x, y, z, 'block_data') == 0:
+            print 'Air cannot be dug, aborting'
+            return
+        # pick a face with an adjacent air block TODO any face seems to work, even if obstructed...
+        faces = [(0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1), (-1, 0, 0), (1, 0, 0)]
         for face, (dx, dy, dz) in enumerate(faces):
             if self.world.get(x+dx, y+dy, z+dz, 'block_data') == 0:
                 break
+        # remember this block to prevent digging a second one before this one is finished
+        self.digging_block = coords
         self.send_player_digging(0, coords, face)
         self.send_player_digging(2, coords, face)
 
@@ -122,6 +132,11 @@ class BotProtocol(ClientProtocol):
         elif cmd == '.s': self.walk_one_block(2)
         elif cmd == '.w': self.walk_one_block(3)
 
+    def on_world_changed(self):
+        if self.digging_block is not None:
+            x, y, z = self.digging_block
+            if self.world.get(x, y, z, 'block_data') == 0:
+                self.digging_block = None
     ##### Network: sending #####
 
     def send_player_position(self, coords = None, on_ground = True):
@@ -210,6 +225,8 @@ class BotProtocol(ClientProtocol):
             self.tasks.add_loop(29, self.send_player_look)
             print 'spawned!'
 
+        self.on_world_changed()
+
     @register("play", 0x21)
     def received_chunk_data(self, buff):
         chunk_coords = buff.unpack('ii')
@@ -218,6 +235,7 @@ class BotProtocol(ClientProtocol):
         size = buff.unpack_varint()
         skylight = True # assume not in Nether TODO
         self.world.unpack(buff, chunk_coords, bitmask, ground_up_continuous, skylight)
+        self.on_world_changed()
 
     @register("play", 0x22)
     def received_multi_block_change(self, buff):
@@ -230,15 +248,17 @@ class BotProtocol(ClientProtocol):
             x = (chunk_x * 16) + (coord_bits >> 12) & 0xf
             data = buff.unpack_varint()
             self.world.put(x, y, z, 'block_data', data)
+        self.on_world_changed()
 
     @register("play", 0x23)
     def received_block_change(self, buff):
         location = buff.unpack('Q') # long long, 64bit
+        data = buff.unpack_varint()
         x = location >> 38
         y = (location >> 26) & 0xfff
         z = location & 0x3ffffff
-        data = buff.unpack_varint()
         self.world.put(x, y, z, 'block_data', data)
+        self.on_world_changed()
 
     @register("play", 0x26)
     def received_map_chunk_bulk(self, buff):
@@ -253,6 +273,7 @@ class BotProtocol(ClientProtocol):
             bitmasks.append(buff.unpack('H'))
         for col in range(column_count):
             self.world.unpack(buff, chunk_coords[col], bitmasks[col], ground_up_continuous, skylight)
+        self.on_world_changed()
 
     @register("play", 0x40)
     def received_disconnect(self, buff):
