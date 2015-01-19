@@ -170,6 +170,14 @@ class BotProtocol(ClientProtocol):
             location,
             face))
 
+    def send_client_settings(self, render_distance=8):
+        self.send_packet(0x07, self.buff_type.pack_string("en_GB") +
+            self.buff_type.pack('bb?B',
+                render_distance,
+                1,
+                True,
+                0xff))
+
     ##### Network: receiving #####
 
     @register("play", 0x02)
@@ -219,6 +227,7 @@ class BotProtocol(ClientProtocol):
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
             print 'spawned!'
+            #self.send_client_settings(16)
 
         self.on_world_changed()
 
