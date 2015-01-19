@@ -1,4 +1,5 @@
 import os
+import random
 
 from quarry.net.client import ClientFactory, ClientProtocol, register
 from quarry.mojang.profile import Profile
@@ -66,6 +67,8 @@ class BotProtocol(ClientProtocol):
         c = 0 if direction in (1, 3) else 2 # coordinate axis to move on
         d = 1 if direction in (1, 2) else -1 # how far to move
         self.coords[c] += d
+        self.coords[0] += .2 - random.random()*.4
+        self.coords[2] += .2 - random.random()*.4
         self.yaw = ((direction + 2) * 360 / 4) % 360
         self.pitch = 0
         self.send_player_position_and_look(self.coords, self.yaw, self.pitch)
@@ -97,6 +100,9 @@ class BotProtocol(ClientProtocol):
             self.is_pathfinding = False
         else:
             coord = self.pathfind_path.pop(0)
+            # randomize position (looks more natural)
+            coord[0] += .2 - random.random()*.4
+            coord[2] += .2 - random.random()*.4
             self.send_player_position((coord[0]+0.5, coord[1], coord[2]+0.5)) # +0.5: center bot on block
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
