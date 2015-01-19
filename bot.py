@@ -49,6 +49,10 @@ class BotProtocol(ClientProtocol):
         if self.digging_block is not None:
             print 'Already digging a block, aborting' # TODO queue?
             return
+        dx, dy, dz = (c - a for c, a in zip(self.coords, coords))
+        if 4*4 < dx*dx + dy*dy + dz*dz:
+            print 'Block too far away, aborting'
+            return
         if self.world.get(x, y, z, 'block_data') == 0:
             print 'Air cannot be dug, aborting'
             return
