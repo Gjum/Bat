@@ -103,11 +103,25 @@ class BotProtocol(ClientProtocol):
             self.pathfind_path = None
             self.is_pathfinding = False
         else:
-            coord = self.pathfind_path.pop(0)
+            # skip blocks if walking in a straight line
+            coords = [int(c) for c in self.coords]
+            delta = [n - c for c, n in zip(coords, self.pathfind_path[0])] # direction bot is walking in
+            for i in range(69): # max. 100 blocks movement per packet, 69 is diagonally TODO check
+                if len(self.pathfind_path) - i <= 0:
+                    break # TODO
+                next_coords = self.pathfind_path[i] # we assume astar() returns tuples, otherwise next check will always fail
+                done = False
+                for n, c, d in zip(next_coords, coords, delta):
+                    if n != c + d:
+                        done = True
+                if done: break # we found a node that is not in a straight line from self.coords
+                coords = next_coords
+            coords = list(coords)
+            self.pathfind_path = self.pathfind_path[i:]
             # randomize position (looks more natural)
-            coord[0] += .2 - random.random()*.4
-            coord[2] += .2 - random.random()*.4
-            self.send_player_position((coord[0]+0.5, coord[1], coord[2]+0.5)) # +0.5: center bot on block
+            coords[0] += .2 - random.random() * .4
+            coords[2] += .2 - random.random() * .4
+            self.send_player_position((coords[0]+0.5, coords[1], coords[2]+0.5)) # +0.5: center bot on block
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
                 self.is_pathfinding = False
