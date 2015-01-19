@@ -86,7 +86,12 @@ def astar(c_from, c_to, world):
     n_open = [start]
     n_visited = []
 
+    tries = 1000
     while True:
+        tries -= 1
+        if tries <= 0:
+            print 'Took too long to find path, increase tries in ai.py'
+            return []
         # find node with shortest path
         best_i = len(n_open)-1
         best_n = n_open[-1]
