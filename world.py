@@ -2,7 +2,8 @@
 
 This module provides a simple world manager that makes use of the Minecraft SMP packet format internally.
 
-Adapted from https://github.com/barneygale/smpmap/blob/master/smpmap.py
+Originally written by Barney Gale, see
+https://github.com/barneygale/smpmap/blob/fe62cd8bb7adf15501956b68534c228c8e5b2847/smpmap.py
 
 """
 
