@@ -122,7 +122,7 @@ class BotProtocol(ClientProtocol):
             # randomize position (looks more natural)
             coords[0] += .2 - random.random() * .4
             coords[2] += .2 - random.random() * .4
-            self.send_player_position((coords[0]+0.5, coords[1], coords[2]+0.5)) # +0.5: center bot on block
+            self.send_player_position([coords[0]+0.5, coords[1], coords[2]+0.5]) # +0.5: center bot on block
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
                 self.is_pathfinding = False
@@ -131,7 +131,7 @@ class BotProtocol(ClientProtocol):
 
     def on_command(self, cmd, *args):
         if cmd == '.path': self.pathfind(*args)
-        if cmd == '.dig': self.dig_block(*args)
+        elif cmd == '.dig': self.dig_block(*args)
         elif cmd == '.n': self.walk_one_block(0)
         elif cmd == '.e': self.walk_one_block(1)
         elif cmd == '.s': self.walk_one_block(2)
