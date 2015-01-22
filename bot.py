@@ -105,24 +105,26 @@ class BotProtocol(ClientProtocol):
             self.is_pathfinding = False
         else:
             # skip blocks if walking in a straight line
+            # this is only done if the bot reaches a position where this is possible,
+            #   because if the current path got obstructed,
+            #   the skipping would have already been computed and not be used
             coords = [int(c) for c in self.coords]
             delta = [n - c for c, n in zip(coords, self.pathfind_path[0])] # direction bot is walking in
-            for i in range(69): # max. 100 blocks movement per packet, 69 is diagonally TODO check
-                if len(self.pathfind_path) - i <= 0:
-                    break # TODO
-                next_coords = self.pathfind_path[i] # we assume astar() returns tuples, otherwise next check will always fail
-                done = False
+            for i in range(min(69, len(self.pathfind_path))): # max. 100 blocks movement per packet, 69 is diagonally TODO check
+                next_coords = self.pathfind_path[i]
+                skip = True
                 for n, c, d in zip(next_coords, coords, delta):
                     if n != c + d:
-                        done = True
-                if done: break # we found a node that is not in a straight line from self.coords
+                        skip = False
+                        break
+                if not skip: break # we found a node that is not in a straight line from self.coords
                 coords = next_coords
             coords = list(coords)
             self.pathfind_path = self.pathfind_path[i:]
-            # randomize position (looks more natural)
-            coords[0] += .2 - random.random() * .4
-            coords[2] += .2 - random.random() * .4
-            self.send_player_position([coords[0]+0.5, coords[1], coords[2]+0.5]) # +0.5: center bot on block
+            # 0.5: center bot on block, 0.2: randomize position
+            coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
+            coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
+            self.send_player_position(coords)
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
                 self.is_pathfinding = False
@@ -137,15 +139,21 @@ class BotProtocol(ClientProtocol):
         elif cmd == '.s': self.walk_one_block(2)
         elif cmd == '.w': self.walk_one_block(3)
 
-    def on_world_changed(self):
+    def on_world_changed(self, how='somehow'):
+        print 'world changed:', how
         if self.digging_block is not None:
             x, y, z = self.digging_block
             if self.world.get(x, y, z, 'block_data') == 0:
-                self.digging_block = None
+                self.digging_block = None # done digging, block is now air
         if self.pathfind_path is not None and len(self.pathfind_path) > 0:
-            # recalculate, blocks may have changed
             # TODO check if changed blocks are on path
-            self.pathfind(*self.pathfind_path[-1])
+            for coords in self.pathfind_path:
+                if True:
+                    break
+            else:
+                # recalculate, blocks may have changed
+                print 'recalculating path'
+                self.pathfind(*self.pathfind_path[-1])
 
     ##### Network: sending #####
 
@@ -244,7 +252,7 @@ class BotProtocol(ClientProtocol):
             print 'spawned!'
             #self.send_client_settings(16)
 
-        self.on_world_changed()
+        self.on_world_changed('received_player_position_and_look')
 
     @register("play", 0x21)
     def received_chunk_data(self, buff):
@@ -254,7 +262,7 @@ class BotProtocol(ClientProtocol):
         size = buff.unpack_varint()
         skylight = True # assume not in Nether TODO
         self.world.unpack(buff, chunk_coords, bitmask, ground_up_continuous, skylight)
-        self.on_world_changed()
+        self.on_world_changed('received_chunk_data for %d:%d' % chunk_coords)
 
     @register("play", 0x22)
     def received_multi_block_change(self, buff):
@@ -267,7 +275,7 @@ class BotProtocol(ClientProtocol):
             x = (chunk_x * 16) + (coord_bits >> 12) & 0xf
             data = buff.unpack_varint()
             self.world.put(x, y, z, 'block_data', data)
-        self.on_world_changed()
+        self.on_world_changed('received_multi_block_change')
 
     @register("play", 0x23)
     def received_block_change(self, buff):
@@ -277,7 +285,7 @@ class BotProtocol(ClientProtocol):
         y = (location >> 26) & 0xfff
         z = location & 0x3ffffff
         self.world.put(x, y, z, 'block_data', data)
-        self.on_world_changed()
+        self.on_world_changed('received_block_change')
 
     @register("play", 0x26)
     def received_map_chunk_bulk(self, buff):
@@ -292,7 +300,7 @@ class BotProtocol(ClientProtocol):
             bitmasks.append(buff.unpack('H'))
         for col in range(column_count):
             self.world.unpack(buff, chunk_coords[col], bitmasks[col], ground_up_continuous, skylight)
-        self.on_world_changed()
+        self.on_world_changed('received_map_chunk_bulk')
 
     @register("play", 0x40)
     def received_disconnect(self, buff):
