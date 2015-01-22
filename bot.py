@@ -3,8 +3,9 @@ import random
 
 from quarry.net.client import ClientFactory, ClientProtocol, register
 from quarry.mojang.profile import Profile
+
 from world import World
-from ai import astar
+from astar.astar import astar
 from info import packet_dict
 
 class BotProtocol(ClientProtocol):

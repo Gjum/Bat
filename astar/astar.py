@@ -1,7 +1,3 @@
-"""
-This file provides useful functions to interacht with the world.
-"""
-
 class AStarNode:
     def __init__(self, coords, parent, finish_coords):
         self.coords = coords
