@@ -17,7 +17,7 @@ def center_and_jitter(coords):
     return coords
 
 def get_yaw_from_movement_delta(delta):
-    """ For rectangular delta, return yaw (0..360); otherwise return 0 """
+    """ For rectangular delta, return yaw [0..360); otherwise return 0 """
     if delta[0] < 0: return  90
     if delta[2] < 0: return 180
     if delta[0] > 0: return 270
@@ -53,7 +53,6 @@ class BotProtocol(ClientProtocol):
                         0x28, 0x29, 0x2a,
                         0x35, 0x37, 0x38,
                         0x40],
-                    # [0x00, 0x02, 0x03, 0x0b, 0x0f, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1c, 0x20, 0x26, 0x29, 0x35, 0x37, 0x38, 0x40]
             }
             if packet_id not in ignored[prefix]:
                 info = '' if packet_id not in packet_dict['play'][prefix] else packet_dict['play'][prefix][packet_id]
@@ -95,13 +94,15 @@ class BotProtocol(ClientProtocol):
 
     def walk_one_block(self, direction):
         direction %= 4
-        coords = old_coords = [int(c) for c in self.coords]
+        old_coords = [int(c) for c in self.coords]
+        coords = old_coords[:]
         c = 0 if direction in (1, 3) else 2 # coordinate axis to move on
         d = 1 if direction in (1, 2) else -1 # how far to move
         coords[c] += d
         coords = center_and_jitter(coords)
-        yaw = get_yaw_from_movement_delta([int(n) - o for n, o in zip(coords, old_coords)])
+        yaw = get_yaw_from_movement_delta([int(n) - int(o) for n, o in zip(coords, old_coords)])
         self.send_player_position_and_look(coords, yaw, 0)
+        self.send_player_look(yaw, 0)
 
     def pathfind(self, *args):
         """ Creates a path to the specified coordinates.
@@ -122,7 +123,7 @@ class BotProtocol(ClientProtocol):
             self.is_pathfinding = False
         else:
             self.pathfind_path.pop(0) # skip starting position
-            print '[pathfind] Path found:', self.pathfind_path
+            print '[pathfind] Path found:', len(self.pathfind_path), 'blocks long'
             if not self.is_pathfinding:
                 self.is_pathfinding = True
                 self.pathfind_continue()
@@ -134,25 +135,11 @@ class BotProtocol(ClientProtocol):
             self.pathfind_path = None
             self.is_pathfinding = False
         else:
-            # skip blocks if walking in a straight line
-            # this is only done if the bot reaches a position where this is possible,
-            #   because if the current path got obstructed,
-            #   the skipping would have already been computed and not be used
-            coords = [int(c) for c in self.coords]
-            delta = [n - c for c, n in zip(coords, self.pathfind_path[0])] # direction bot is walking in
-            for i in range(min(69, len(self.pathfind_path))): # max. 100 blocks movement per packet, 69 is diagonally TODO check
-                next_coords = self.pathfind_path[i]
-                skip = True
-                for n, c, d in zip(next_coords, coords, delta):
-                    if n != c + d:
-                        skip = False
-                        break
-                if not skip: break # we found a node that is not in a straight line from self.coords
-                coords = next_coords
-            coords = list(coords)
-            self.pathfind_path = self.pathfind_path[i:] if i != 0 else [] # when first (= last) node in path gets picked, we are done
-            coords = center_and_jitter(coords)
-            self.send_player_position_and_look(coords, get_yaw_from_movement_delta(delta), 0)
+            coords = center_and_jitter(list(self.pathfind_path.pop(0)))
+            delta = [int(n) - int(o) for o, n in zip(self.coords, coords)] # direction bot is walking in
+            yaw = get_yaw_from_movement_delta(delta)
+            self.send_player_position_and_look(coords, yaw, 0)
+            self.send_player_look(yaw, 0)
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
                 self.is_pathfinding = False
