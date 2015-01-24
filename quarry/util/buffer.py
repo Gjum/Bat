@@ -33,6 +33,9 @@ class Buffer(object):
         self.discard()
         return d
 
+    def read(self, l):
+        return self.unpack_raw(l)
+
     def unpack_raw(self, l):
         if len(self.buff1) < l:
             raise BufferUnderrun()

@@ -34,3 +34,5 @@ The distribution includes a few example uses of the `quarry` module.
 * python 2.7
 * pycrypto
 * twisted
+* nbt
+

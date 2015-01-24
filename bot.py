@@ -1,5 +1,6 @@
 import os
 import random
+from nbt.nbt import TAG_Compound
 
 from quarry.net.client import ClientFactory, ClientProtocol, register
 from quarry.mojang.profile import Profile
@@ -349,11 +350,17 @@ class BotProtocol(ClientProtocol):
         if item_id >= 0: # slot is not empty
             count = buff.unpack('b')
             damage = buff.unpack('h')
-            nbt = buff.unpack('b')
-            if nbt != 0: # stack has NBT data
-                print 'Slot has NBT data:', ' '.join([hex(ord(v)) for v in buff.buff1])
-                buff.discard() # TODO read NBT data
-            self.window_manager.set_slot(window_id, slot_nr, item_id, count, damage, nbt)
+            nbt_start = buff.unpack('b')
+            enchants = {}
+            if nbt_start != 0: # stack has NBT data
+                # For the NBT structure, see http://wiki.vg/Slot_Data#Format
+                buff.unpack('bb') # skip to enchantment list
+                nbt = TAG_Compound(buff)
+                for e in nbt.get('ench'):
+                    ench_id = e.get('id').value
+                    ench_level = e.get('lvl').value
+                    enchants[ench_id] =  ench_level
+            self.window_manager.set_slot(window_id, slot_nr, item_id, count, damage, enchants)
         else:
             self.window_manager.clear_slot(window_id, slot_nr)
 
