@@ -162,10 +162,13 @@ class World:
         # unpack chunk column data
         column.unpack(buff, bitmask, ground_up_continuous, has_skylight)
 
-    def get(self, x, y, z, key):
-        x, rx = divmod(int(x), 16)
-        y, ry = divmod(int(y), 16)
-        z, rz = divmod(int(z), 16)
+    def get_block(self, coords):
+        if coords[1] < 0 or coords[1] > 255: # outside the world, vertically
+            return 0
+
+        x, rx = divmod(int(coords[0]), 16)
+        y, ry = divmod(int(coords[1]), 16)
+        z, rz = divmod(int(coords[2]), 16)
 
         if not (x, z) in self.columns:
             return 0
@@ -174,12 +177,15 @@ class World:
         if chunk is None:
             return 0
 
-        return chunk[key].get(rx, ry, rz)
+        return chunk['block_data'].get(rx, ry, rz)
 
-    def put(self, x, y, z, key, data):
-        x, rx = divmod(int(x), 16)
-        y, ry = divmod(int(y), 16)
-        z, rz = divmod(int(z), 16)
+    def set_block(self, coords, data):
+        if coords[1] < 0 or coords[1] > 255: # outside the world, vertically
+            return
+
+        x, rx = divmod(int(coords[0]), 16)
+        y, ry = divmod(int(coords[1]), 16)
+        z, rz = divmod(int(coords[2]), 16)
 
         if (x, z) in self.columns:
             column = self.columns[(x, z)]
@@ -190,20 +196,20 @@ class World:
         if chunk is None:
             chunk = column.sections[y] = ChunkSection()
 
-        chunk[key].put(rx, ry, rz, data)
+        chunk['block_data'].put(rx, ry, rz, data)
 
-    def get_biome(self, x, z):
-        x, rx = divmod(int(x), 16)
-        z, rz = divmod(int(z), 16)
+    def get_biome(self, chunk_coords):
+        x, rx = divmod(int(chunk_coords[0]), 16)
+        z, rz = divmod(int(chunk_coords[1]), 16)
 
         if (x, z) not in self.columns:
             return 0
 
         return self.columns[(x, z)].biome.get(rx, rz)
 
-    def set_biome(self, x, z, data):
-        x, rx = divmod(int(x), 16)
-        z, rz = divmod(int(z), 16)
+    def set_biome(self, chunk_coords, data):
+        x, rx = divmod(int(chunk_coords[0]), 16)
+        z, rz = divmod(int(chunk_coords[1]), 16)
 
         if (x, z) in self.columns:
             column = self.columns[(x, z)]

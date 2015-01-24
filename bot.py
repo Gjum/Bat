@@ -56,13 +56,13 @@ class BotProtocol(ClientProtocol):
         if 4*4 < dx*dx + dy*dy + dz*dz:
             print 'Block too far away, aborting'
             return
-        if self.world.get(x, y, z, 'block_data') == 0:
+        if self.world.get_block(coords) == 0:
             print 'Air cannot be dug, aborting'
             return
         # pick a face with an adjacent air block TODO any face seems to work, even if obstructed...
         faces = [(0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1), (-1, 0, 0), (1, 0, 0)]
         for face, (dx, dy, dz) in enumerate(faces):
-            if self.world.get(x+dx, y+dy, z+dz, 'block_data') == 0:
+            if self.world.get_block((x+dx, y+dy, z+dz)) == 0:
                 break
         # remember this block to prevent digging a second one before this one is finished
         self.digging_block = coords
@@ -159,8 +159,7 @@ class BotProtocol(ClientProtocol):
     def on_world_changed(self, how='somehow'):
         print 'world changed:', how
         if self.digging_block is not None:
-            x, y, z = self.digging_block
-            if self.world.get(x, y, z, 'block_data') == 0:
+            if self.world.get_block(self.digging_block) == 0:
                 self.digging_block = None # done digging, block is now air
         if self.pathfind_path is not None and len(self.pathfind_path) > 0:
             # TODO check if changed blocks are on path
@@ -301,7 +300,7 @@ class BotProtocol(ClientProtocol):
             z = (chunk_z * 16) + (coord_bits >> 8) & 0xf
             x = (chunk_x * 16) + (coord_bits >> 12) & 0xf
             data = buff.unpack_varint()
-            self.world.put(x, y, z, 'block_data', data)
+            self.world.set_block(x, y, z, data)
         self.on_world_changed('received_multi_block_change')
 
     @register("play", 0x23)
@@ -311,7 +310,7 @@ class BotProtocol(ClientProtocol):
         x = location >> 38
         y = (location >> 26) & 0xfff
         z = location & 0x3ffffff
-        self.world.put(x, y, z, 'block_data', data)
+        self.world.set_block(x, y, z, data)
         self.on_world_changed('received_block_change')
 
     @register("play", 0x26)

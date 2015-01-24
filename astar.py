@@ -24,15 +24,14 @@ class AStarNode:
 
     def is_valid(self, world):
         """ Should the node be checked later? """
-        get = lambda c: world.get(c[0], c[1], c[2], 'block_data')
         # Can the bot stand here?
-        if get(self.c_add(0, -1, 0)) == 0: return False
+        if world.get_block(self.c_add(0, -1, 0)) == 0: return False
         # check air blocks above self when going down and horizontally
         for dy in range(self.parent.coords[1] - self.coords[1] + 2):
-            if get(self.c_add(0, dy, 0)) != 0: return False
+            if world.get_block(self.c_add(0, dy, 0)) != 0: return False
         # check air blocks above parent when going up
         for dy in range(self.coords[1] - self.parent.coords[1]):
-            if get(self.parent.c_add(0, dy+2, 0)) != 0: return False
+            if world.get_block(self.parent.c_add(0, dy+2, 0)) != 0: return False
         return True
 
     def is_unvisited(self, n_visited):
