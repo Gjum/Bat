@@ -76,6 +76,13 @@ class BotProtocol(ClientProtocol):
             return
         # TODO place_block
 
+    def get_yaw_from_movement_delta(self, delta):
+        """For rectangular delta, return yaw (0..360); otherwise return 0"""
+        if delta[0] < 0: return  90
+        if delta[2] < 0: return 180
+        if delta[0] > 0: return 270
+        return 0
+
     def walk_one_block(self, direction):
         direction %= 4
         c = 0 if direction in (1, 3) else 2 # coordinate axis to move on
@@ -134,7 +141,7 @@ class BotProtocol(ClientProtocol):
             # 0.5: center bot on block, 0.2: randomize position
             coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
             coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
-            self.send_player_position(coords)
+            self.send_player_position_and_look(coords, self.get_yaw_from_movement_delta(delta), 0)
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
                 self.is_pathfinding = False
