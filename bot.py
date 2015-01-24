@@ -258,21 +258,6 @@ class BotProtocol(ClientProtocol):
         if position_flags & (1 << 3): pitch += self.pitch
         if position_flags & (1 << 4): yaw += self.yaw
 
-        print 'position corrected:', coords
-
-        self.coords = coords
-        self.yaw = yaw
-        self.pitch = pitch
-
-        # send back player position and look
-        self.send_packet(0x06, self.buff_type.pack('dddff?',
-            self.coords[0],
-            self.coords[1],
-            self.coords[2],
-            self.yaw,
-            self.pitch,
-            True))
-
         # if client just spawned, start sending position data to prevent timeout
         # TODO once per 30s, might skip when sent some other packet recently
         if not self.spawned:
@@ -280,6 +265,17 @@ class BotProtocol(ClientProtocol):
             self.tasks.add_loop(29, self.send_player_look)
             print 'Spawned at', coords
             #self.send_client_settings(16)
+        else:
+            print 'Position corrected:', coords
+
+        # send back and set player position and look
+        self.send_packet(0x06, self.buff_type.pack('dddff?',
+            coords[0],
+            coords[1],
+            coords[2],
+            yaw,
+            pitch,
+            True))
 
         self.on_world_changed('received_player_position_and_look')
 
