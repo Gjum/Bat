@@ -6,7 +6,7 @@ from quarry.mojang.profile import Profile
 
 from world import World
 from window import WindowHandler
-from astar.astar import astar
+from astar import astar
 from info import packet_dict # TODO only used for logging
 
 class BotProtocol(ClientProtocol):
