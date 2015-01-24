@@ -46,18 +46,18 @@ class BotProtocol(ClientProtocol):
 
     def dig_block(self, *args):
         if len(args) < 3:
-            print 'Not enough args for dig_block:', args
+            print '[dig_block] Not enough args:', args
             return
         x, y, z = coords = map(int, args[:3])
         if self.digging_block is not None:
-            print 'Already digging a block, aborting' # TODO queue?
+            print '[dig_block] Already digging at', self.digging_block, '- aborting' # IDEA queue?
             return
         dx, dy, dz = (c - a for c, a in zip(self.coords, coords))
         if 4*4 < dx*dx + dy*dy + dz*dz:
-            print 'Block too far away, aborting'
+            print '[dig_block] Block too far away - aborting'
             return
         if self.world.get_block(coords) == 0:
-            print 'Air cannot be dug, aborting'
+            print '[dig_block] Air cannot be dug - aborting'
             return
         # pick a face with an adjacent air block TODO any face seems to work, even if obstructed
         face = 0
@@ -69,6 +69,7 @@ class BotProtocol(ClientProtocol):
         self.digging_block = coords
         self.send_player_digging(0, coords, face) # start digging and ...
         self.send_player_digging(2, coords, face) # ... immediately stop, server sends block update when done
+        # IDEA look at the block
 
     def place_block(self, *args):
         """ Places the selected block (in the hotbar) at the specified coordinates """
@@ -98,18 +99,19 @@ class BotProtocol(ClientProtocol):
     def pathfind(self, *args):
         """ Creates a path to the specified coordinates.
         By calling pathfind_continue() every 0.05s, the bot follows the path.
-        The path gets updated in on_world_changed(). """
+        The path gets updated by on_world_changed(). """
         if len(args) < 3:
-            print 'Not enough args for pathfind:', args
+            print '[pathfind] Not enough args:', args
             return
         target = args[:3]
         self.pathfind_path = astar(self.coords, target, self.world)
         if len(self.pathfind_path) <= 0:
-            print 'No path found'
+            print '[pathfind] No path found'
             self.pathfind_path = [target] # save for later
             self.is_pathfinding = False
         else:
             self.pathfind_path.pop(0) # skip starting position
+            print '[pathfind] Path found:', self.pathfind_path
             if not self.is_pathfinding:
                 self.is_pathfinding = True
                 self.pathfind_continue()
@@ -146,7 +148,7 @@ class BotProtocol(ClientProtocol):
                 self.pathfind_path = None
                 self.is_pathfinding = False
             else:
-                self.tasks.add_delay(0.05, self.pathfind_continue) # TODO test how fast the bot can go
+                self.tasks.add_delay(0.05, self.pathfind_continue) # IDEA test how fast the bot can go
 
     def on_command(self, cmd, *args):
         if cmd == '.path': self.pathfind(*args)
@@ -162,20 +164,18 @@ class BotProtocol(ClientProtocol):
             if self.world.get_block(self.digging_block) == 0:
                 self.digging_block = None # done digging, block is now air
         if self.pathfind_path is not None and len(self.pathfind_path) > 0:
-            # TODO check if changed blocks are on path
+            # TODO check if changed blocks are on path or otherwise reduce frequency on packet bulk
             for coords in self.pathfind_path:
                 if True:
                     break
             else:
                 # recalculate, blocks may have changed
-                print 'Recalculating path...'
+                print '[pathfind] Recalculating path...'
                 self.pathfind(*self.pathfind_path[-1])
-                if self.pathfind_path is not None and len(self.pathfind_path) > 0:
-                    print 'New path found:', self.pathfind_path
 
     ##### Network: sending #####
 
-    def send_player_position(self, coords = None, on_ground = True):
+    def send_player_position(self, coords=None, on_ground=True):
         if coords is not None: self.coords = coords
         self.send_packet(0x04, self.buff_type.pack('ddd?',
             self.coords[0],
@@ -183,7 +183,7 @@ class BotProtocol(ClientProtocol):
             self.coords[2],
             on_ground))
 
-    def send_player_look(self, yaw = None, pitch = None, on_ground = True):
+    def send_player_look(self, yaw=None, pitch=None, on_ground=True):
         if yaw is not None: self.yaw = self.yaw
         if pitch is not None: self.pitch = self.pitch
         self.send_packet(0x05, self.buff_type.pack('ff?',
@@ -191,7 +191,7 @@ class BotProtocol(ClientProtocol):
             self.pitch,
             on_ground))
 
-    def send_player_position_and_look(self, coords = None, yaw = None, pitch = None, on_ground = True):
+    def send_player_position_and_look(self, coords=None, yaw=None, pitch=None, on_ground=True):
         if coords is not None: self.coords = coords
         if yaw is not None: self.yaw = yaw
         if pitch is not None: self.pitch = pitch
@@ -211,7 +211,7 @@ class BotProtocol(ClientProtocol):
             location,
             face))
 
-# TODO send_player_block_placement
+    # TODO send_player_block_placement
     def send_player_block_placement(self, coords, face=1, hotbar_index=None, cursor=(0, 0, 0)):
         if hotbar_index is not None:
             self.hotbar_index = hotbar_index
@@ -245,7 +245,7 @@ class BotProtocol(ClientProtocol):
 
     @register("play", 0x08)
     def received_player_position_and_look(self, buff):
-        """ Should only be sent on spawning and on motion error """
+        """ Sent on spawning, teleport and motion error """
         coords = list(buff.unpack('ddd'))
         yaw = buff.unpack('f')
         pitch = buff.unpack('f')
@@ -259,14 +259,14 @@ class BotProtocol(ClientProtocol):
         if position_flags & (1 << 4): yaw += self.yaw
 
         # if client just spawned, start sending position data to prevent timeout
-        # TODO once per 30s, might skip when sent some other packet recently
+        # once per 30s, TODO might skip when sent some other packet recently
         if not self.spawned:
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
             print 'Spawned at', coords
             #self.send_client_settings(16)
         else:
-            print 'Position corrected:', coords
+            print 'Position corrected: from', self.coords, 'to', coords
 
         # send back and set player position and look
         self.send_packet(0x06, self.buff_type.pack('dddff?',
