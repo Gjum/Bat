@@ -129,7 +129,8 @@ class BotProtocol(ClientProtocol):
                 if not skip: break # we found a node that is not in a straight line from self.coords
                 coords = next_coords
             coords = list(coords)
-            self.pathfind_path = self.pathfind_path[i:]
+            self.pathfind_path = self.pathfind_path[i:] if i != 0 else [] # when first (= last) node in path gets picked, we are done
+            print 'path:', self.pathfind_path
             # 0.5: center bot on block, 0.2: randomize position
             coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
             coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
