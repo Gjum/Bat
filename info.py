@@ -104,10 +104,17 @@ effect_dict = {
         23: { "id": "saturation", "name": "Saturation" },
 }
 
-inventory_dict = {
+# -1 is a custom entry for the player's inventory.
+#   It has no ID, because it is never opened by the server.
+# TODO add more inventory indices
+window_dict = {
+        -1: { "id": "inventory", "name": "Inventory",
+            "out_index": 0, "crafting_index": 1, "armor_index": 5, "inventory_index": 9, "hotbar_index": 36 },
         0:  { "id": "chest", "name": "Chest/Large chest" },
-        1:  { "id": "crafting_table", "name": "Workbench" },
-        2:  { "id": "furnace", "name": "Furnace" },
+        1:  { "id": "crafting_table", "name": "Workbench",
+            "out_index": 0, "crafting_index": 1, "inventory_index": 10, "hotbar_index": 37 },
+        2:  { "id": "furnace", "name": "Furnace",
+            "smelted_index": 0, "fuel_index": 1, "out_index": 2, "inventory_index": 3, "hotbar_index": 30 },
         3:  { "id": "dispenser", "name": "Dispenser" },
         4:  { "id": "enchanting_table", "name": "Enchantment table" },
         5:  { "id": "brewing_stand", "name": "Brewing Stand" },

@@ -5,8 +5,9 @@ from quarry.net.client import ClientFactory, ClientProtocol, register
 from quarry.mojang.profile import Profile
 
 from world import World
+from window import WindowHandler
 from astar.astar import astar
-from info import packet_dict
+from info import packet_dict # TODO only used for logging
 
 class BotProtocol(ClientProtocol):
 
@@ -16,6 +17,7 @@ class BotProtocol(ClientProtocol):
         self.yaw = 0
         self.pitch = 0
         self.world = World()
+        self.window_manager = WindowHandler()
         self.digging_block = None
         self.pathfind_path = None
         self.is_pathfinding = False
@@ -66,6 +68,13 @@ class BotProtocol(ClientProtocol):
         self.digging_block = coords
         self.send_player_digging(0, coords, face)
         self.send_player_digging(2, coords, face)
+
+    def place_block(self, *args):
+        """ Places the selected block (in the hotbar) at the specified coordinates """
+        if len(args) < 3:
+            print 'Not enough args for place_block:', args
+            return
+        # TODO place_block
 
     def walk_one_block(self, direction):
         direction %= 4
@@ -193,6 +202,16 @@ class BotProtocol(ClientProtocol):
             location,
             face))
 
+# TODO send_player_block_placement
+    def send_player_block_placement(self, coords, face=1, hotbar_index=None, cursor=(0, 0, 0)):
+        if hotbar_index is not None:
+            self.hotbar_index = hotbar_index
+        x, y, z = map(int, coords)
+        location = ((x & 0x3ffffff) << 38) | ((y & 0xFFF) << 26) | (z & 0x3ffffff)
+        self.send_packet(0x08, self.buff_type.pack('QB', location, face)
+            + self.buff_type.pack('h', 0xffff) # slot to place from might be ignored by Notchian server?
+            + self.buff_type.pack('BBB', cursor))
+
     def send_client_settings(self, render_distance=8):
         self.send_packet(0x07, self.buff_type.pack_string("en_GB") +
             self.buff_type.pack('bb?B',
@@ -301,6 +320,54 @@ class BotProtocol(ClientProtocol):
         for col in range(column_count):
             self.world.unpack(buff, chunk_coords[col], bitmasks[col], ground_up_continuous, skylight)
         self.on_world_changed('received_map_chunk_bulk')
+
+    @register("play", 0x2d)
+    def received_open_window(self, buff):
+        window_id = buff.unpack('B')
+        window_type = buff.unpack_string()
+        window_title = buff.unpack_chat()
+        num_slots = buff.unpack('B')
+        horse_entity_id = buff.unpack('i') if window_type == 'EntityHorse' else None
+        self.window_manager.open_window(window_id, window_type, window_title, num_slots, horse_entity_id)
+
+    @register("play", 0x2e)
+    def received_close_window(self, buff):
+        window_id = buff.unpack('B')
+        self.window_manager.close_window(window_id)
+
+    # TODO move unpack_slot somewhere else, maybe into window.Slot?
+    def unpack_slot(self, buff, window_id, slot_nr):
+        item_id = buff.unpack('h')
+        if item_id >= 0: # slot is not empty
+            count = buff.unpack('b')
+            damage = buff.unpack('h')
+            nbt = buff.unpack('b')
+            if nbt != 0: # stack has NBT data
+                print 'Slot has NBT data:', ' '.join([hex(ord(v)) for v in buff.buff1])
+                buff.discard() # TODO read NBT data
+            self.window_manager.set_slot(window_id, slot_nr, item_id, count, damage, nbt)
+        else:
+            self.window_manager.clear_slot(window_id, slot_nr)
+
+    @register("play", 0x2f)
+    def received_set_slot(self, buff):
+        window_id = buff.unpack('b')
+        slot_nr = buff.unpack('h') # number of the changed slot in the window
+        self.unpack_slot(buff, window_id, slot_nr)
+
+    @register("play", 0x30)
+    def received_window_items(self, buff):
+        window_id = buff.unpack('B')
+        num_slots = buff.unpack('h')
+        for slot_nr in range(num_slots):
+            self.unpack_slot(buff, window_id, slot_nr)
+
+    @register("play", 0x32)
+    def received_confirm_transaction(self, buff):
+        window_id = buff.unpack('b')
+        action_id = buff.unpack('h')
+        accepted = buff.unpack('?')
+        # TODO do something when a transaction is confirmed
 
     @register("play", 0x40)
     def received_disconnect(self, buff):
