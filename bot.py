@@ -78,7 +78,7 @@ class BotProtocol(ClientProtocol):
         # TODO place_block
 
     def get_yaw_from_movement_delta(self, delta):
-        """For rectangular delta, return yaw (0..360); otherwise return 0"""
+        """ For rectangular delta, return yaw (0..360); otherwise return 0 """
         if delta[0] < 0: return  90
         if delta[2] < 0: return 180
         if delta[0] > 0: return 270
@@ -138,7 +138,6 @@ class BotProtocol(ClientProtocol):
                 coords = next_coords
             coords = list(coords)
             self.pathfind_path = self.pathfind_path[i:] if i != 0 else [] # when first (= last) node in path gets picked, we are done
-            print 'path:', self.pathfind_path
             # 0.5: center bot on block, 0.2: randomize position
             coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
             coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
@@ -158,7 +157,7 @@ class BotProtocol(ClientProtocol):
         elif cmd == '.w': self.walk_one_block(3)
 
     def on_world_changed(self, how='somehow'):
-        print 'world changed:', how
+        #print 'world changed:', how
         if self.digging_block is not None:
             if self.world.get_block(self.digging_block) == 0:
                 self.digging_block = None # done digging, block is now air
@@ -169,8 +168,10 @@ class BotProtocol(ClientProtocol):
                     break
             else:
                 # recalculate, blocks may have changed
-                print 'recalculating path'
+                print 'Recalculating path...'
                 self.pathfind(*self.pathfind_path[-1])
+                if self.pathfind_path is not None and len(self.pathfind_path) > 0:
+                    print 'New path found:', self.pathfind_path
 
     ##### Network: sending #####
 
@@ -244,12 +245,13 @@ class BotProtocol(ClientProtocol):
 
     @register("play", 0x08)
     def received_player_position_and_look(self, buff):
-        """ should only be sent on spawning and on motion error """
+        """ Should only be sent on spawning and on motion error """
         coords = list(buff.unpack('ddd'))
         yaw = buff.unpack('f')
         pitch = buff.unpack('f')
         position_flags = buff.unpack('B')
 
+        # bits in position_flags indicate relative values
         if position_flags & (1 << 0): coords[0] += self.coords[0]
         if position_flags & (1 << 1): coords[1] += self.coords[1]
         if position_flags & (1 << 2): coords[2] += self.coords[2]
@@ -276,7 +278,7 @@ class BotProtocol(ClientProtocol):
         if not self.spawned:
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
-            print 'spawned!'
+            print 'Spawned at', coords
             #self.send_client_settings(16)
 
         self.on_world_changed('received_player_position_and_look')
