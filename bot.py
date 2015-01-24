@@ -184,9 +184,9 @@ class BotProtocol(ClientProtocol):
             on_ground))
 
     def send_player_position_and_look(self, coords = None, yaw = None, pitch = None, on_ground = True):
-        if coords is not None: self.coords = self.coords
-        if yaw is not None: self.yaw = self.yaw
-        if pitch is not None: self.pitch = self.pitch
+        if coords is not None: self.coords = coords
+        if yaw is not None: self.yaw = yaw
+        if pitch is not None: self.pitch = pitch
         self.send_packet(0x06, self.buff_type.pack('dddff?',
             self.coords[0],
             self.coords[1],
