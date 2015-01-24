@@ -27,7 +27,7 @@ class AStarNode:
         # Can the bot stand here?
         if world.get_block(self.c_add(0, -1, 0)) == 0: return False
         # check air blocks above self when going down and horizontally
-        for dy in range(self.parent.coords[1] - self.coords[1] + 2):
+        for dy in range(max(2, self.parent.coords[1] - self.coords[1] + 2)):
             if world.get_block(self.c_add(0, dy, 0)) != 0: return False
         # check air blocks above parent when going up
         for dy in range(self.coords[1] - self.parent.coords[1]):
@@ -46,12 +46,13 @@ class AStarNode:
     def try_add_neighbors(self, world, n_visited, n_open, finish_coords):
         """ Tries to add all adjacent blocks. """
         # TODO add larger numbers for climbing/dropping from higher
-        # bot takes no fall damage and can move 100 blocks up/down at once
-        # 10 just runs smoothly on my machine
-        for y in range(-10, 10): # should be the opposite number, so the bot can take the same path back
+        # bot takes no fall damage and can move 100 blocks down at once
+        # bot can only go up 2 blocks when also going sideways
+        # should be the opposite number, so the bot can take the same path back
+        for y in range(-2, 2+1): # +1 because range is exclusive
             for x, z in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 new_node = AStarNode(self.c_add(x, y, z), self, finish_coords)
-                if new_node.is_valid(world) and new_node.is_unvisited(n_visited):
+                if new_node.is_unvisited(n_visited) and new_node.is_valid(world):
                     for node in n_open:
                         if new_node.coords == node.coords:
                             # node exists, do not create new one
@@ -74,19 +75,14 @@ def astar(c_from, c_to, world):
     """ Finds a shortest path between two coordinates in a world.
     If there is a path, returns a list of all coordinates that lie on the path.
     Otherwise, returns an empty list."""
-    # swap from/to for backtrace at the end, see below
+    # swap from/to, A* finds a path from finish to start
     start_coords, finish_coords = map(tuple, (map(int, c_to), map(int, c_from)))
     start = AStarNode(start_coords, None, finish_coords)
     finish = AStarNode(finish_coords, None, finish_coords)
     n_open = [start]
     n_visited = []
 
-    tries = 1000
-    while True:
-        tries -= 1
-        if tries <= 0:
-            print 'Took too long to find path, increase tries in ai.py'
-            return []
+    for tries in range(10000):
         # find node with shortest path
         best_i = len(n_open)-1
         best_n = n_open[-1]
@@ -102,8 +98,11 @@ def astar(c_from, c_to, world):
         # not done, check neighbors
         node.try_add_neighbors(world, n_visited, n_open, finish_coords)
         if len(n_open) <= 0:
-            # no path found, all accessible nodes checked
+            print '[A*] no path found, all accessible nodes checked'
             return []
+    else:
+        print '[A*] Took too long to find path, increase tries in ai.py'
+        return []
 
     path = []
     # build path by backtracing from finish to start, i.e. from -> to
@@ -121,4 +120,4 @@ if __name__ == '__main__':
                 return 1
             return 0
     world = WorldTest()
-    print astar((0, 1, 0), (0, 1, 2), world)
+    print 'Got path', astar((0, 1, 0), (0, 1, 2), world)
