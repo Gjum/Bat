@@ -59,15 +59,16 @@ class BotProtocol(ClientProtocol):
         if self.world.get_block(coords) == 0:
             print 'Air cannot be dug, aborting'
             return
-        # pick a face with an adjacent air block TODO any face seems to work, even if obstructed...
-        faces = [(0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1), (-1, 0, 0), (1, 0, 0)]
-        for face, (dx, dy, dz) in enumerate(faces):
-            if self.world.get_block((x+dx, y+dy, z+dz)) == 0:
-                break
+        # pick a face with an adjacent air block TODO any face seems to work, even if obstructed
+        face = 0
+        #faces = [(0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1), (-1, 0, 0), (1, 0, 0)]
+        #for face, (dx, dy, dz) in enumerate(faces):
+        #    if self.world.get_block((x+dx, y+dy, z+dz)) == 0:
+        #        break
         # remember this block to prevent digging a second one before this one is finished
         self.digging_block = coords
-        self.send_player_digging(0, coords, face)
-        self.send_player_digging(2, coords, face)
+        self.send_player_digging(0, coords, face) # start digging and ...
+        self.send_player_digging(2, coords, face) # ... immediately stop, server sends block update when done
 
     def place_block(self, *args):
         """ Places the selected block (in the hotbar) at the specified coordinates """
