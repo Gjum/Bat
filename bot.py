@@ -9,6 +9,20 @@ from window import WindowHandler
 from astar import astar
 from info import packet_dict # TODO only used for logging
 
+def center_and_jitter(coords):
+    # 0.5: center on block, jitter by 0.2 (player apothem minus a bit)
+    coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
+    coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
+    return coords
+
+def get_yaw_from_movement_delta(delta):
+    """ For rectangular delta, return yaw (0..360); otherwise return 0 """
+    if delta[0] < 0: return  90
+    if delta[2] < 0: return 180
+    if delta[0] > 0: return 270
+    return 0
+
+
 class BotProtocol(ClientProtocol):
 
     def setup(self):
@@ -78,23 +92,15 @@ class BotProtocol(ClientProtocol):
             return
         # TODO place_block
 
-    def get_yaw_from_movement_delta(self, delta):
-        """ For rectangular delta, return yaw (0..360); otherwise return 0 """
-        if delta[0] < 0: return  90
-        if delta[2] < 0: return 180
-        if delta[0] > 0: return 270
-        return 0
-
     def walk_one_block(self, direction):
         direction %= 4
+        coords = old_coords = [int(c) for c in self.coords]
         c = 0 if direction in (1, 3) else 2 # coordinate axis to move on
         d = 1 if direction in (1, 2) else -1 # how far to move
-        self.coords[c] += d
-        self.coords[0] += .2 - random.random()*.4
-        self.coords[2] += .2 - random.random()*.4
-        self.yaw = ((direction + 2) * 360 / 4) % 360
-        self.pitch = 0
-        self.send_player_position_and_look(self.coords, self.yaw, self.pitch)
+        coords[c] += d
+        coords = center_and_jitter(coords)
+        yaw = get_yaw_from_movement_delta([int(n) - o for n, o in zip(coords, old_coords)])
+        self.send_player_position_and_look(coords, yaw, 0)
 
     def pathfind(self, *args):
         """ Creates a path to the specified coordinates.
@@ -104,7 +110,11 @@ class BotProtocol(ClientProtocol):
             print '[pathfind] Not enough args:', args
             return
         target = args[:3]
-        self.pathfind_path = astar(self.coords, target, self.world)
+        try:
+            self.pathfind_path = astar(self.coords, target, self.world)
+        except ValueError:
+            print '[pathfind] Invalid args:', args
+            return
         if len(self.pathfind_path) <= 0:
             print '[pathfind] No path found'
             self.pathfind_path = [target] # save for later
@@ -140,10 +150,8 @@ class BotProtocol(ClientProtocol):
                 coords = next_coords
             coords = list(coords)
             self.pathfind_path = self.pathfind_path[i:] if i != 0 else [] # when first (= last) node in path gets picked, we are done
-            # 0.5: center bot on block, 0.2: randomize position
-            coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
-            coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
-            self.send_player_position_and_look(coords, self.get_yaw_from_movement_delta(delta), 0)
+            coords = center_and_jitter(coords)
+            self.send_player_position_and_look(coords, get_yaw_from_movement_delta(delta), 0)
             if len(self.pathfind_path) <= 0:
                 self.pathfind_path = None
                 self.is_pathfinding = False
@@ -255,8 +263,8 @@ class BotProtocol(ClientProtocol):
         if position_flags & (1 << 0): coords[0] += self.coords[0]
         if position_flags & (1 << 1): coords[1] += self.coords[1]
         if position_flags & (1 << 2): coords[2] += self.coords[2]
-        if position_flags & (1 << 3): pitch += self.pitch
-        if position_flags & (1 << 4): yaw += self.yaw
+        if position_flags & (1 << 3): yaw += self.yaw
+        if position_flags & (1 << 4): pitch += self.pitch
 
         # if client just spawned, start sending position data to prevent timeout
         # once per 30s, TODO might skip when sent some other packet recently
@@ -269,13 +277,7 @@ class BotProtocol(ClientProtocol):
             print 'Position corrected: from', self.coords, 'to', coords
 
         # send back and set player position and look
-        self.send_packet(0x06, self.buff_type.pack('dddff?',
-            coords[0],
-            coords[1],
-            coords[2],
-            yaw,
-            pitch,
-            True))
+        self.send_player_position_and_look(coords, yaw, pitch)
 
         self.on_world_changed('received_player_position_and_look')
 
@@ -299,7 +301,7 @@ class BotProtocol(ClientProtocol):
             z = (chunk_z * 16) + (coord_bits >> 8) & 0xf
             x = (chunk_x * 16) + (coord_bits >> 12) & 0xf
             data = buff.unpack_varint()
-            self.world.set_block(x, y, z, data)
+            self.world.set_block((x, y, z), data)
         self.on_world_changed('received_multi_block_change')
 
     @register("play", 0x23)
@@ -309,7 +311,7 @@ class BotProtocol(ClientProtocol):
         x = location >> 38
         y = (location >> 26) & 0xfff
         z = location & 0x3ffffff
-        self.world.set_block(x, y, z, data)
+        self.world.set_block((x, y, z), data)
         self.on_world_changed('received_block_change')
 
     @register("play", 0x26)
