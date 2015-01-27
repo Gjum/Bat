@@ -97,6 +97,13 @@ class BotProtocol(ClientProtocol):
             return
         self.send_player_block_placement(args[:3])
 
+    def select_slot(self, *args):
+        if len(args) < 1:
+            print 'Not enough args for select_slot:', args
+            return
+        self.send_select_slot(int(args[0]))
+        self.send_player_position()
+
 
     def walk_one_block(self, direction):
         direction %= 4
@@ -164,6 +171,7 @@ class BotProtocol(ClientProtocol):
         if cmd == 'path': self.pathfind(*args)
         elif cmd == 'dig': self.dig_block(*args)
         elif cmd == 'place': self.place_block(*args)
+        elif cmd == 'select': self.select_slot(*args)
         elif cmd == 'n': self.walk_one_block(0)
         elif cmd == 'e': self.walk_one_block(1)
         elif cmd == 's': self.walk_one_block(2)
@@ -174,6 +182,7 @@ class BotProtocol(ClientProtocol):
             print '    path <coords>'
             print '    dig <coords>'
             print '    place <coords>'
+            print '    select <slot>'
             print '    n e s w'
 
     def on_player_spawned(self, eid):
