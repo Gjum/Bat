@@ -10,6 +10,7 @@ from world import World
 from window import WindowHandler
 from astar import astar
 from info import packet_dict # TODO only used for logging
+from info import item_or_block
 
 def center_and_jitter(coords):
     # 0.5: center on block, jitter by 0.2 (player apothem minus a bit)
@@ -97,6 +98,31 @@ class BotProtocol(ClientProtocol):
             return
         self.send_player_block_placement(args[:3])
 
+    def hold_item(self, *args):
+        """Places a stack of the specified wanted_item_id in the hotbar and selects it"""
+        if len(args) < 1:
+            print '[Hold item] Not enough args:', args
+            return
+        wanted_item_id = int(args[0])
+        if wanted_item_id == self.window_handler.get_hotbar()[self.selected_slot].item_id:
+            return # wanted item already selected
+        # not selected, search for it
+        slot_with_item = -1 # last slot with wanted item
+        # hotbar is at the end of the inventory, search there first
+        for slot_nr, slot in enumerate(self.window_handler.get_hotbar()):
+            if slot.item_id == wanted_item_id:
+                self.select_slot(slot_nr)
+                return
+        for slot_nr, slot in enumerate(self.window_handler[0].slots):
+            if slot.item_id == wanted_item_id:
+                # num-swap into hotbar
+                # window_id = 0, button = selected_slot, mode = 2
+                self.send_click_window(0, slot_nr, self.selected_slot,
+                        self.window_handler.next_action_id(), 2, slot)
+                return
+        print '[Hold item]', item_or_block(wanted_item_id)['name'], wanted_item_id, 'not found in inventory'
+        return
+
     def select_slot(self, *args):
         if len(args) < 1:
             print 'Not enough args for select_slot:', args
@@ -171,6 +197,7 @@ class BotProtocol(ClientProtocol):
         if cmd == 'path': self.pathfind(*args)
         elif cmd == 'dig': self.dig_block(*args)
         elif cmd == 'place': self.place_block(*args)
+        elif cmd == 'hold': self.hold_item(*args)
         elif cmd == 'select': self.select_slot(*args)
         elif cmd == 'n': self.walk_one_block(0)
         elif cmd == 'e': self.walk_one_block(1)
@@ -182,6 +209,7 @@ class BotProtocol(ClientProtocol):
             print '    path <coords>'
             print '    dig <coords>'
             print '    place <coords>'
+            print '    hold <item ID>'
             print '    select <slot>'
             print '    n e s w'
 
