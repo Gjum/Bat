@@ -28,13 +28,16 @@ def get_yaw_from_movement_delta(delta):
 class BotProtocol(ClientProtocol):
 
     def setup(self):
-        self.spawned = False
         self.coords = [0, 0, 0]
         self.yaw = 0
         self.pitch = 0
+        self.selected_slot = 0
+
         self.world = World()
-        self.window_manager = WindowHandler()
+        self.window_handler = WindowHandler()
         self.entities = EntityHandler()
+
+        self.spawned = False
         self.digging_block = None
         self.pathfind_path = None
         self.is_pathfinding = False
@@ -187,7 +190,30 @@ class BotProtocol(ClientProtocol):
                 print '[pathfind] Recalculating path...'
                 self.pathfind(*self.pathfind_path[-1])
 
+    def on_open_window(self, window_id):
+        pass
+
+    def on_close_window(self, window_id):
+        pass
+
+    def on_slot_change(self, window_id, slot_nr):
+        pass
+
+    def on_confirm_transaction(self, window_id, action_id, accepted):
+        pass
+
     ##### Network: sending #####
+
+    # TODO move pack_slot somewhere else, maybe into util.buffer?
+    def pack_slot(self, slot):
+        return self.buff_type.pack('h', -1)
+        # TODO actually pack the slot
+        buff = self.buff_type.pack('h', slot.item_id)
+        if slot.item_id >= 0: # slot is not empty
+            buff += self.buff_type.pack('b', slot.count)
+            buff += self.buff_type.pack('h', slot.damage)
+            buff += self.buff_type.pack('b', -1) # TODO pack enchants (NBT)
+        return buff
 
     def send_player_position(self, coords=None, on_ground=True):
         if coords is not None: self.coords = coords
@@ -225,18 +251,46 @@ class BotProtocol(ClientProtocol):
             location,
             face))
 
-    # TODO send_player_block_placement
-    def send_player_block_placement(self, coords, face=1, hotbar_index=None, cursor=(0, 0, 0)):
-        if hotbar_index is not None:
-            self.hotbar_index = hotbar_index
+    def send_player_block_placement(self, coords, face=1, cursor=(0, 0, 0)):
         x, y, z = map(int, coords)
         location = ((x & 0x3ffffff) << 38) | ((y & 0xFFF) << 26) | (z & 0x3ffffff)
         self.send_packet(0x08, self.buff_type.pack('QB', location, face)
-            + self.buff_type.pack('h', 0xffff) # slot to place from might be ignored by Notchian server?
-            + self.buff_type.pack('BBB', cursor))
+            + self.pack_slot(self.window_handler.get_hotbar()[self.selected_slot]) # TODO slot to place from is ignored by Notchian server
+            + self.buff_type.pack('BBB', *cursor))
 
-    def send_client_settings(self, render_distance=8):
-        self.send_packet(0x07, self.buff_type.pack_string("en_GB") +
+    def send_select_slot(self, slot):
+        self.selected_slot = slot
+        self.send_packet(0x09, self.buff_type.pack('h', slot))
+
+    def send_close_window(self, window_id):
+        self.send_packet(0x0d, self.buff_type.pack('b', window_id))
+
+    def send_click_window(self, window_id, slot_nr, button, action_id, mode, slot_item):
+        self.send_packet(0x0e, self.buff_type.pack('bhbhb',
+            window_id,
+            slot_nr,
+            button,
+            action_id,
+            mode)
+            + self.pack_slot(slot_item))
+
+    def send_enchant_item(self, window_id, enchantment_nr):
+        self.send_packet(0x11, self.buff_type.pack('bb', window_id, enchantment_nr))
+
+    def send_update_sign(self, coords, lines):
+        """ Lines are ['first', 'second', '3', '4'] """
+        if len(lines) != 4:
+            print '[Update sign] Invalid number of lines:', lines
+            return
+        lines_data = ''
+        for line in lines:
+            lines_data += pack_chat(line)
+        self.send_packet(0x12,
+                self.buff_type.pack('bb', window_id, enchantment_nr)
+                + lines_data)
+
+    def send_client_settings(self, render_distance):
+        self.send_packet(0x15, self.buff_type.pack_string("en_GB") +
             self.buff_type.pack('bb?B',
                 render_distance,
                 1,
@@ -442,15 +496,17 @@ class BotProtocol(ClientProtocol):
         window_title = buff.unpack_chat()
         num_slots = buff.unpack('B')
         horse_entity_id = buff.unpack('i') if window_type == 'EntityHorse' else None
-        self.window_manager.open_window(window_id, window_type, window_title, num_slots, horse_entity_id)
+        self.window_handler.open_window(window_id, window_type, window_title, num_slots, horse_entity_id)
+        self.on_open_window(window_id)
 
     @register("play", 0x2e)
     def received_close_window(self, buff):
         window_id = buff.unpack('B')
-        self.window_manager.close_window(window_id)
+        self.window_handler.close_window(window_id)
+        self.on_close_window(window_id)
 
-    # TODO move unpack_slot somewhere else, maybe into window.Slot?
-    def unpack_slot(self, buff, window_id, slot_nr):
+    # TODO move unpack_slot somewhere else, maybe into util.buffer?
+    def unpack_slot(self, buff):
         item_id = buff.unpack('h')
         if item_id >= 0: # slot is not empty
             count = buff.unpack('b')
@@ -460,34 +516,40 @@ class BotProtocol(ClientProtocol):
             if nbt_start != 0: # stack has NBT data
                 # For the NBT structure, see http://wiki.vg/Slot_Data#Format
                 buff.unpack('bb') # skip to enchantment list
-                nbt = TAG_Compound(buff)
+                nbt = TAG_Compound(buff) # unpacks the NBT data
                 for e in nbt.get('ench'):
                     ench_id = e.get('id').value
                     ench_level = e.get('lvl').value
                     enchants[ench_id] =  ench_level
-            self.window_manager.set_slot(window_id, slot_nr, item_id, count, damage, enchants)
-        else:
-            self.window_manager.clear_slot(window_id, slot_nr)
+            return item_id, count, damage, enchants
+        else: # clear slot
+            return item_id, 0, 0, {}
 
     @register("play", 0x2f)
     def received_set_slot(self, buff):
         window_id = buff.unpack('b')
         slot_nr = buff.unpack('h') # number of the changed slot in the window
-        self.unpack_slot(buff, window_id, slot_nr)
+        slot = self.unpack_slot(buff) # tuple for slot instantiation
+        if window_id != -1:
+            self.window_handler[window_id].set_slot(slot_nr, *slot)
+            self.on_slot_change(window_id, slot_nr)
+        else: # Notchian server apparently sends window_id = slot_nr = -1 on /clear
+            print 'received_set_slot suspects /clear: id', window_id, 'slot', slot_nr
 
     @register("play", 0x30)
     def received_window_items(self, buff):
         window_id = buff.unpack('B')
         num_slots = buff.unpack('h')
         for slot_nr in range(num_slots):
-            self.unpack_slot(buff, window_id, slot_nr)
+            self.window_handler[window_id].set_slot(slot_nr, *self.unpack_slot(buff))
+            self.on_slot_change(window_id, slot_nr)
 
     @register("play", 0x32)
     def received_confirm_transaction(self, buff):
         window_id = buff.unpack('b')
         action_id = buff.unpack('h')
         accepted = buff.unpack('?')
-        # TODO do something when a transaction is confirmed
+        self.on_confirm_transaction(window_id, action_id, accepted)
 
     @register("play", 0x40)
     def received_disconnect(self, buff):
