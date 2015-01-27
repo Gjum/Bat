@@ -114,21 +114,22 @@ class BotProtocol(ClientProtocol):
         By calling pathfind_continue() every 0.05s, the bot follows the path.
         The path gets updated by on_world_changed(). """
         if len(args) < 3:
-            print '[pathfind] Not enough args:', args
+            print '[Pathfinding] Not enough args:', args
             return
         target = args[:3]
+        print '[Pathfinding] Finding path to', target, '...'
         try:
             self.pathfind_path = astar(self.coords, target, self.world)
         except ValueError:
-            print '[pathfind] Invalid args:', args
+            print '[Pathfinding] Invalid args:', args
             return
         if len(self.pathfind_path) <= 0:
-            print '[pathfind] No path found'
+            print '[Pathfinding] No path found'
             self.pathfind_path = [target] # save for later
             self.is_pathfinding = False
         else:
             self.pathfind_path.pop(0) # skip starting position
-            print '[pathfind] Path found:', len(self.pathfind_path), 'blocks long'
+            print '[Pathfinding] Path found:', len(self.pathfind_path), 'blocks long'
             if not self.is_pathfinding:
                 self.is_pathfinding = True
                 self.pathfind_continue()
@@ -151,13 +152,22 @@ class BotProtocol(ClientProtocol):
             else:
                 self.tasks.add_delay(0.05, self.pathfind_continue) # IDEA test how fast the bot can go
 
+    ##### Events #####
+
     def on_command(self, cmd, *args):
-        if cmd == '.path': self.pathfind(*args)
-        elif cmd == '.dig': self.dig_block(*args)
-        elif cmd == '.n': self.walk_one_block(0)
-        elif cmd == '.e': self.walk_one_block(1)
-        elif cmd == '.s': self.walk_one_block(2)
-        elif cmd == '.w': self.walk_one_block(3)
+        print '[Command]', cmd, args
+        if cmd == 'path': self.pathfind(*args)
+        elif cmd == 'dig': self.dig_block(*args)
+        elif cmd == 'n': self.walk_one_block(0)
+        elif cmd == 'e': self.walk_one_block(1)
+        elif cmd == 's': self.walk_one_block(2)
+        elif cmd == 'w': self.walk_one_block(3)
+        else:
+            if cmd not in 'help': print 'Unknown command', cmd, args
+            print 'Available commands:'
+            print '    path <coords>'
+            print '    dig <coords>'
+            print '    n e s w'
 
     def on_player_spawned(self, eid):
         pass # TODO do something
@@ -187,7 +197,6 @@ class BotProtocol(ClientProtocol):
                     break
             else:
                 # recalculate, blocks may have changed
-                print '[pathfind] Recalculating path...'
                 self.pathfind(*self.pathfind_path[-1])
 
     def on_open_window(self, window_id):
@@ -332,15 +341,14 @@ class BotProtocol(ClientProtocol):
         if position_flags & (1 << 3): yaw += self.yaw
         if position_flags & (1 << 4): pitch += self.pitch
 
-        # if client just spawned, start sending position data to prevent timeout
+        # if client just spawned, start sending player_look to prevent timeout
         # once per 30s, TODO might skip when sent some other packet recently
         if not self.spawned:
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
-            print 'Spawned at', coords
-            #self.send_client_settings(16)
-        else:
-            print 'Position corrected: from', self.coords, 'to', coords
+            self.send_client_settings(16)
+
+        print 'Position corrected: from', self.coords, 'to', coords
 
         # send back and set player position and look
         self.send_player_position_and_look(coords, yaw, pitch)
@@ -554,8 +562,7 @@ class BotProtocol(ClientProtocol):
     @register("play", 0x40)
     def received_disconnect(self, buff):
         reason = buff.unpack_string()
-
-        print 'Disconnected: %s' % reason
+        print '[Disconnected] %s' % reason
         self.close()
 
 

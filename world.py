@@ -69,7 +69,7 @@ class ChunkData:
         self.data[x + ((y * 16) + z) * 16] = data
 
 
-class ChunkDataNibble():
+class ChunkDataNibble:
     """ A 16x16x8 unsigned char array for storing metadata, light or additional data
     Each array element contains two 4-bit elements. """
 
