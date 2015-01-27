@@ -95,7 +95,8 @@ class BotProtocol(ClientProtocol):
         if len(args) < 3:
             print 'Not enough args for place_block:', args
             return
-        # TODO place_block
+        self.send_player_block_placement(args[:3])
+
 
     def walk_one_block(self, direction):
         direction %= 4
@@ -162,6 +163,7 @@ class BotProtocol(ClientProtocol):
         print '[Command]', cmd, args
         if cmd == 'path': self.pathfind(*args)
         elif cmd == 'dig': self.dig_block(*args)
+        elif cmd == 'place': self.place_block(*args)
         elif cmd == 'n': self.walk_one_block(0)
         elif cmd == 'e': self.walk_one_block(1)
         elif cmd == 's': self.walk_one_block(2)
@@ -171,6 +173,7 @@ class BotProtocol(ClientProtocol):
             print 'Available commands:'
             print '    path <coords>'
             print '    dig <coords>'
+            print '    place <coords>'
             print '    n e s w'
 
     def on_player_spawned(self, eid):
