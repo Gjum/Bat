@@ -325,8 +325,8 @@ class BotProtocol(ClientProtocol):
         chat_type = ('Chat', 'System', 'AutoComplete')[chat_type]
         print '[%s] %s' % (chat_type, text)
 
-        if self.spawned and chat_type == 'Chat':
-            # get the words as a list
+        if self.spawned and ', ' in text:
+            # get the words/args as a list
             text = str(text[:-1]).split(', ')[1].split(' ')
             self.on_command(*text)
 
