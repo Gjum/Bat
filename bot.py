@@ -130,6 +130,10 @@ class BotProtocol(ClientProtocol):
         else:
             self.pathfind_path.pop(0) # skip starting position
             print '[Pathfinding] Path found:', len(self.pathfind_path), 'blocks long'
+            if len(self.pathfind_path) == 0:
+                # pathfind_continue would not move the bot, so send position now
+                self.send_player_position()
+                return
             if not self.is_pathfinding:
                 self.is_pathfinding = True
                 self.pathfind_continue()
