@@ -674,3 +674,65 @@ entity_dict = {
         0x78: { "id": "Villager", "name": "Villager", "type": "npc" },
 }
 
+object_dict = {
+         1: { "name": "Boat", "width": 1.5, "height": 0.6 },
+         2: { "name": "Item Stack", "width": 0.25, "height": 0.25 },
+        10: { "name": "Minecart", "width": 0.98, "height": 0.7 },
+        50: { "name": "Activated TNT", "width": 0.98, "height": 0.98 },
+        51: { "name": "Ender Crystal", "width": 2.0, "height": 2.0 },
+        60: { "name": "Arrow", "width": 0.5, "height": 0.5 },
+        61: { "name": "Snowball", "width": 0.25, "height": 0.25 },
+        62: { "name": "Egg", "width": 0.25, "height": 0.25 },
+        63: { "name": "Fire Ball", "width": 1.0, "height": 1.0 },
+        64: { "name": "Fire Charge", "width": 0.3125, "height": 0.3125 },
+        65: { "name": "Thrown Enderpearl", "width": 0.25, "height": 0.25 },
+        66: { "name": "Wither Skull", "width": 0.3125, "height": 0.3125 },
+        70: { "name": "Falling Objects", "width": 0.98, "height": 0.98 },
+        71: { "name": "Item frame", "width": 0, "height": 0 }, # size varies
+        72: { "name": "Eye of Ender", "width": 0.25, "height": 0.25 },
+        73: { "name": "Thrown Potion", "width": 0.25, "height": 0.25 },
+        74: { "name": "Falling Dragon Egg", "width": 0.98, "height": 0.98 },
+        75: { "name": "Thrown Exp Bottle", "width": 0.25, "height": 0.25 },
+        76: { "name": "Firework Rocket", "width": 0.25, "height": 0.25 },
+        77: { "name": "Leash Knot", "width": 0.5, "height": 0.5 },
+        78: { "name": "Armor Stand", "width": 0.5, "height": 2.0 },
+        90: { "name": "Fishing Float", "width": 0.25, "height": 0.25 },
+}
+
+mob_dict = {
+         50: { "hostile":  True, "name": "Creeper", "width": 0.6, "height": 1.8 },
+         51: { "hostile":  True, "name": "Skeleton", "width": 0.6, "height": 1.95 },
+         52: { "hostile":  True, "name": "Spider", "width": 1.4, "height": 0.9 },
+         53: { "hostile":  True, "name": "Giant Zombie", "width": 0.6*6, "height": 1.8*6 }, # 6x zombie size
+         54: { "hostile":  True, "name": "Zombie", "width": 0.6, "height": 1.8 },
+         55: { "hostile":  True, "name": "Slime", "width": 0.51000005, "height": 0.51000005 }, # real size is w*size,h*size
+         56: { "hostile":  True, "name": "Ghast", "width": 4, "height": 4 },
+         57: { "hostile": False, "name": "Zombie Pigman", "width": 0.6, "height": 1.8 },
+         58: { "hostile": False, "name": "Enderman", "width": 0.6, "height": 2.9 },
+         59: { "hostile":  True, "name": "Cave Spider", "width": 0.7, "height": 0.5 },
+         60: { "hostile":  True, "name": "Silverfish", "width": 0.4, "height": 0.3 },
+         61: { "hostile":  True, "name": "Blaze", "width": 0.6, "height": 1.8 },
+         62: { "hostile":  True, "name": "Magma Cube", "width": 0.51000005, "height": 0.51000005 }, # real size is w*size,h*size
+         63: { "hostile":  True, "name": "Ender Dragon", "width": 16.0, "height": 8.0 },
+         64: { "hostile":  True, "name": "Wither", "width": 0.9, "height": 3.5 },
+         65: { "hostile": False, "name": "Bat", "width": 0.5, "height": 0.9 },
+         66: { "hostile":  True, "name": "Witch", "width": 0.6, "height": 1.8 },
+         67: { "hostile":  True, "name": "Endermite", "width": 0.4, "height": 0.3 },
+         68: { "hostile":  True, "name": "Guardian", "width": 0.85, "height": 0.85 },
+
+         90: { "hostile": False, "name": "Pig", "width": 0.9, "height": 0.9 },
+         91: { "hostile": False, "name": "Sheep", "width": 0.9, "height": 1.3 },
+         92: { "hostile": False, "name": "Cow", "width": 0.9, "height": 1.3 },
+         93: { "hostile": False, "name": "Chicken", "width": 0.4, "height": 0.7 },
+         94: { "hostile": False, "name": "Squid", "width": 0.95, "height": 0.95 },
+         95: { "hostile": False, "name": "Wolf", "width": 0.6, "height": 0.8 },
+         96: { "hostile": False, "name": "Mooshroom", "width": 0.9, "height": 1.3 },
+         97: { "hostile": False, "name": "Snowman", "width": 0.7, "height": 1.9 },
+         98: { "hostile": False, "name": "Ocelot", "width": 0.6, "height": 0.8 },
+         99: { "hostile": False, "name": "Iron Golem", "width": 1.4, "height": 2.9 },
+        100: { "hostile": False, "name": "Horse", "width": 1.4, "height": 1.6 },
+        101: { "hostile": False, "name": "Rabbit", "width": 0.6, "height": 0.7 },
+
+        120: { "hostile": False, "name": "Villager", "width": 0.6, "height": 1.8 },
+}
+
