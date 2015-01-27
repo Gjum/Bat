@@ -5,6 +5,7 @@ from nbt.nbt import TAG_Compound
 from quarry.net.client import ClientFactory, ClientProtocol, register
 from quarry.mojang.profile import Profile
 
+from entity import EntityHandler
 from world import World
 from window import WindowHandler
 from astar import astar
@@ -33,6 +34,7 @@ class BotProtocol(ClientProtocol):
         self.pitch = 0
         self.world = World()
         self.window_manager = WindowHandler()
+        self.entities = EntityHandler()
         self.digging_block = None
         self.pathfind_path = None
         self.is_pathfinding = False
@@ -154,6 +156,22 @@ class BotProtocol(ClientProtocol):
         elif cmd == '.s': self.walk_one_block(2)
         elif cmd == '.w': self.walk_one_block(3)
 
+    def on_player_spawned(self, eid):
+        pass # TODO do something
+
+    def on_object_spawned(self, eid):
+        #pass # TODO do something
+        if self.entities[eid].e_type == 2: # item stack
+            # maybe pick up later
+            def cont(self, eid):
+                dist = sum(map(lambda (e,p): abs(e-p), zip(self.entities[eid].coords, self.coords)))
+                if dist < 30:
+                    self.pickup_item_stack(eid)
+            self.tasks.add_delay(2.05, cont, self, eid) # wait two seconds and a tick
+
+    def on_mob_spawned(self, eid):
+        pass # TODO do something
+
     def on_world_changed(self, how='somehow'):
         #print 'world changed:', how
         if self.digging_block is not None:
@@ -227,6 +245,12 @@ class BotProtocol(ClientProtocol):
 
     ##### Network: receiving #####
 
+    @register("play", 0x01)
+    def received_join_game(self, buff):
+        eid = buff.unpack('i')
+        buff.discard() # TODO join game: parse the rest
+        self.entities.add_player(eid)
+
     @register("play", 0x02)
     def received_chat_message(self, buff):
         text = buff.unpack_chat()
@@ -268,6 +292,98 @@ class BotProtocol(ClientProtocol):
         self.send_player_position_and_look(coords, yaw, pitch)
 
         self.on_world_changed('received_player_position_and_look')
+
+        ### entities ###
+
+    @register("play", 0x0c)
+    def received_spawn_player(self, buff):
+        eid = buff.unpack_varint()
+        uuid = buff.unpack_uuid()
+        coords = [float(i) / 32 for i in buff.unpack('iii')]
+        yaw, pitch = (i * 360 / 256 for i in buff.unpack('BB'))
+        item = buff.unpack('h')
+        data = {}
+        buff.discard() # TODO read metadata
+        # e_type=-1 for player (not official, used internally)
+        self.entities.add_player(eid, uuid, coords, yaw, pitch, data, item)
+        self.on_player_spawned(eid)
+
+    @register("play", 0x0e)
+    def received_spawn_object(self, buff):
+        eid = buff.unpack_varint()
+        obj_type = buff.unpack('b')
+        coords = [float(i) / 32 for i in buff.unpack('iii')]
+        pitch, yaw = (i * 360 / 256 for i in buff.unpack('BB'))
+        data = {}
+        buff.discard() # TODO read entity data
+        self.entities.add_object(eid, obj_type, coords, yaw, pitch, data)
+        self.on_object_spawned(eid)
+
+    @register("play", 0x0f)
+    def received_spawn_mob(self, buff):
+        eid = buff.unpack_varint()
+        mob_type = buff.unpack('b')
+        coords = [float(i) / 32 for i in buff.unpack('iii')]
+        yaw, pitch = (i * 360 / 256 for i in buff.unpack('BB'))
+        head_pitch = buff.unpack('B') * 360 / 256
+        velocity = [0,0,0]
+        data = {}
+        buff.discard() # TODO read velocity, metadata
+        self.entities.add_mob(eid, mob_type, coords, yaw, pitch, data, velocity, head_pitch)
+        self.on_mob_spawned(eid)
+
+    @register("play", 0x12)
+    def received_entity_velocity(self, buff):
+        eid = buff.unpack_varint()
+        velocity = [float(i) / 8000 for i in buff.unpack('hhh')]
+        self.entities[eid].velocity = velocity
+
+    @register("play", 0x13)
+    def received_destroy_entities(self, buff):
+        count = buff.unpack_varint()
+        for i in range(count):
+            eid = buff.unpack_varint()
+            self.entities.remove(eid)
+
+    @register("play", 0x15)
+    def received_entity_relative_move(self, buff):
+        eid = buff.unpack_varint()
+        delta = [float(i) / 32 for i in buff.unpack('bbb')]
+        on_ground = buff.unpack('?')
+        self.entities[eid].relative_move(delta, on_ground)
+
+    @register("play", 0x16)
+    def received_entity_look(self, buff):
+        eid = buff.unpack_varint()
+        yaw, pitch = (i * 360 / 256 for i in buff.unpack('BB'))
+        on_ground = buff.unpack('?')
+        self.entities[eid].look(yaw, pitch, on_ground)
+
+    @register("play", 0x17)
+    def received_entity_look_and_relative_move(self, buff):
+        eid = buff.unpack_varint()
+        delta = [float(i) / 32 for i in buff.unpack('bbb')]
+        yaw, pitch = (i * 360 / 256 for i in buff.unpack('BB'))
+        on_ground = buff.unpack('?')
+        self.entities[eid].relative_move(delta, on_ground)
+        self.entities[eid].look(yaw, pitch, on_ground)
+
+    @register("play", 0x18)
+    def received_entity_teleport(self, buff):
+        eid = buff.unpack_varint()
+        coords = [float(i) / 32 for i in buff.unpack('iii')]
+        yaw, pitch = (i * 360 / 256 for i in buff.unpack('BB'))
+        on_ground = buff.unpack('?')
+        self.entities[eid].move(coords, on_ground)
+        self.entities[eid].look(yaw, pitch, on_ground)
+
+    @register("play", 0x19)
+    def received_entity_head_look(self, buff):
+        eid = buff.unpack_varint()
+        yaw = buff.unpack('B') * 360 / 256
+        self.entities[eid].head_look(yaw)
+
+    ### blocks ###
 
     @register("play", 0x21)
     def received_chunk_data(self, buff):
@@ -316,6 +432,8 @@ class BotProtocol(ClientProtocol):
         for col in range(column_count):
             self.world.unpack(buff, chunk_coords[col], bitmasks[col], ground_up_continuous, skylight)
         self.on_world_changed('received_map_chunk_bulk')
+
+    ### windows ###
 
     @register("play", 0x2d)
     def received_open_window(self, buff):
