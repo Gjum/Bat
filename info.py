@@ -1,3 +1,10 @@
+
+def item_or_block(its_id):
+    if its_id in block_dict: return block_dict[its_id]
+    if its_id in item_dict: return item_dict[its_id]
+    print '[item_or_block]', its_id, hex(its_id), 'not found'
+    return { "id": "error", "name": "Error", "flags": "" }
+
 packet_dict = {
     "play": {
         "send": {
