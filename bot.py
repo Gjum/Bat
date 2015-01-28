@@ -33,6 +33,9 @@ class BotProtocol(ClientProtocol):
         self.yaw = 0
         self.pitch = 0
         self.selected_slot = 0
+        self.health = 0
+        self.food = 0
+        self.saturation = 0
 
         self.world = World()
         self.window_handler = WindowHandler()
@@ -190,6 +193,10 @@ class BotProtocol(ClientProtocol):
             else:
                 self.tasks.add_delay(0.05, self.pathfind_continue) # IDEA test how fast the bot can go
 
+    def respawn(self):
+        print 'Respawning'
+        self.send_status(0)
+
     ##### Events #####
 
     def on_command(self, cmd, *args):
@@ -212,6 +219,11 @@ class BotProtocol(ClientProtocol):
             print '    hold <item ID>'
             print '    select <slot>'
             print '    n e s w'
+
+    def on_update_health(self):
+        print 'health:', self.health, 'food:', self.food, 'saturation:', self.saturation
+        if self.health <= 0:
+            self.respawn()
 
     def on_player_spawned(self, eid):
         pass # TODO do something
@@ -350,6 +362,10 @@ class BotProtocol(ClientProtocol):
                 True,
                 0xff))
 
+    def send_status(self, action_id=0):
+        """ 0 for respawn """
+        self.send_packet(0x16, self.buff_type.pack_varint(action_id))
+
     ##### Network: receiving #####
 
     @register("play", 0x01)
@@ -369,6 +385,13 @@ class BotProtocol(ClientProtocol):
             # get the words/args as a list
             text = str(text[:-1]).split(', ')[1].split(' ')
             self.on_command(*text)
+
+    @register("play", 0x06)
+    def received_uptate_health(self, buff):
+        self.health = buff.unpack('f')
+        self.food = buff.unpack_varint()
+        self.saturation = buff.unpack('f')
+        self.on_update_health()
 
     @register("play", 0x08)
     def received_player_position_and_look(self, buff):
@@ -489,6 +512,13 @@ class BotProtocol(ClientProtocol):
         yaw = buff.unpack('B') * 360 / 256
         self.entities[eid].head_look(yaw)
 
+    @register("play", 0x1a)
+    def received_entity_status(self, buff):
+        eid = buff.unpack('i')
+        status = buff.unpack('b')
+        if status == 2: # Living Entity hurt, sent on health change
+            self.tasks.add_delay(0.1, self.send_player_position) # send position update to receive health update
+
     ### blocks ###
 
     @register("play", 0x21)
@@ -608,6 +638,22 @@ class BotProtocol(ClientProtocol):
         reason = buff.unpack_string()
         print '[Disconnected] %s' % reason
         self.close()
+
+    @register("play", 0x42)
+    def received_combat(self, buff):
+        event = buff.unpack_varint()
+        combat_type = ('enter combat', 'end combat', 'entity dead')[event]
+        print '[Combat]:', combat_type,
+        if event == 1: # end combat
+            duration = buff.unpack_varint()
+            entity_id = buff.unpack('i')
+            print 'duration:', duration, 'entity_id:', entity_id,
+        if event == 2: # entity dead
+            player_id = buff.unpack_varint()
+            message = buff.unpack_string()
+            entity_id = buff.unpack_varint()
+            print 'player_id:', player_id, 'entity_id:', entity_id, 'message:', message,
+        print
 
 
 class BotFactory(ClientFactory):
