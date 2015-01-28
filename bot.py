@@ -76,22 +76,22 @@ class BotProtocol(ClientProtocol):
             }
             if packet_id not in ignored[prefix]:
                 info = '' if packet_id not in packet_dict['play'][prefix] else packet_dict['play'][prefix][packet_id]
-                print '%s %#02x %s' % (prefix, packet_id, info)
+                self.logger.debug('%s %#02x %s', prefix, packet_id, info)
 
     def dig_block(self, *args):
         if len(args) < 3:
-            print '[dig_block] Not enough args:', args
+            self.logger.warn('[dig_block] Not enough args: %s', args)
             return
         x, y, z = coords = map(int, args[:3])
         if self.digging_block is not None:
-            print '[dig_block] Already digging at', self.digging_block, '- aborting' # IDEA queue?
+            self.logger.warn('[dig_block] Already digging at %s - aborting', self.digging_block) # IDEA queue?
             return
         dx, dy, dz = (c - a for c, a in zip(self.coords, coords))
         if 4*4 < dx*dx + dy*dy + dz*dz:
-            print '[dig_block] Block too far away - aborting'
+            self.logger.warn('[dig_block] Block too far away - aborting')
             return
         if self.world.get_block(coords) == 0:
-            print '[dig_block] Air cannot be dug - aborting'
+            self.logger.warn('[dig_block] Air cannot be dug - aborting')
             return
         # pick a face with an adjacent air block TODO any face seems to work, even if obstructed
         face = 0
@@ -108,14 +108,14 @@ class BotProtocol(ClientProtocol):
     def place_block(self, *args):
         """ Places the selected block (in the hotbar) at the specified coordinates """
         if len(args) < 3:
-            print 'Not enough args for place_block:', args
+            self.logger.warn('Not enough args for place_block: %s', args)
             return
         self.send_player_block_placement(args[:3])
 
     def hold_item(self, *args):
         """Places a stack of the specified wanted_item_id in the hotbar and selects it"""
         if len(args) < 1:
-            print '[Hold item] Not enough args:', args
+            self.logger.warn('[Hold item] Not enough args: %s', args)
             return
         wanted_item_id = int(args[0])
         if wanted_item_id == self.window_handler.get_hotbar()[self.selected_slot].item_id:
@@ -134,21 +134,21 @@ class BotProtocol(ClientProtocol):
                 self.send_click_window(0, slot_nr, self.selected_slot,
                         self.window_handler.next_action_id(), 2, slot)
                 return
-        print '[Hold item]', item_or_block(wanted_item_id)['name'], wanted_item_id, 'not found in inventory'
+        self.logger.warn('[Hold item] %s (%s) not found in inventory', item_or_block(wanted_item_id)['name'], wanted_item_id)
         return
 
     def select_slot(self, *args):
         if len(args) < 1:
-            print 'Not enough args for select_slot:', args
+            self.logger.warn('Not enough args for select_slot: %s', args)
             return
         self.send_select_slot(int(args[0]))
         self.send_player_position()
 
     def pickup_item_stack(self, eid):
         if eid not in self.entities:
-            print '[Item pickup] Could not pick up', eid, '- already removed'
+            self.logger.warn('[Item pickup] Could not pick up %i - already removed', eid)
             return
-        print '[Item pickup] Picking up', eid
+        self.logger.info('[Item pickup] Picking up %i', eid)
         self.pathfind(*self.entities[eid].coords)
 
     def walk_one_block(self, direction):
@@ -168,22 +168,22 @@ class BotProtocol(ClientProtocol):
         By calling pathfind_continue() every 0.05s, the bot follows the path.
         The path gets updated by on_world_changed(). """
         if len(args) < 3:
-            print '[Pathfinding] Not enough args:', args
+            self.logger.warn('[Pathfinding] Not enough args: %s', args)
             return
         target = args[:3]
-        print '[Pathfinding] Finding path to', target, '...'
+        self.logger.info('[Pathfinding] Finding path to %s...', target)
         try:
             self.pathfind_path = astar(self.coords, target, self.world)
         except ValueError:
-            print '[Pathfinding] Invalid args:', args
+            self.logger.warn('[Pathfinding] Invalid args: %s', args)
             return
         if len(self.pathfind_path) <= 0:
-            print '[Pathfinding] No path found'
+            self.logger.warn('[Pathfinding] No path found')
             self.pathfind_path = [target] # save for later
             self.is_pathfinding = False
         else:
             self.pathfind_path.pop(0) # skip starting position
-            print '[Pathfinding] Path found:', len(self.pathfind_path), 'blocks long'
+            self.logger.info('[Pathfinding] Path found: %i blocks long', len(self.pathfind_path))
             if len(self.pathfind_path) == 0:
                 # pathfind_continue would not move the bot, so send position now
                 self.send_player_position()
@@ -211,13 +211,13 @@ class BotProtocol(ClientProtocol):
                 self.tasks.add_delay(0.05, self.pathfind_continue) # IDEA test how fast the bot can go
 
     def respawn(self):
-        print 'Respawning'
+        self.logger.warn('Respawning')
         self.send_status(0)
 
     ##### Events #####
 
     def on_command(self, cmd, *args):
-        print '[Command]', cmd, args
+        self.logger.debug('[Command] %s %s', cmd, args)
         if cmd == 'path': self.pathfind(*args)
         elif cmd == 'tp': self.send_player_position(list(map(int, args[:3])))
         elif cmd == 'dig': self.dig_block(*args)
@@ -240,7 +240,7 @@ class BotProtocol(ClientProtocol):
             print '    n e s w'
 
     def on_update_health(self):
-        print 'health:', self.health, 'food:', self.food, 'saturation:', self.saturation
+        self.logger.info('health: %i, food: %i, saturation: %i', self.health, self.food, self.saturation)
         if self.health <= 0:
             self.respawn()
 
@@ -261,7 +261,7 @@ class BotProtocol(ClientProtocol):
         pass # TODO do something
 
     def on_world_changed(self, how='somehow'):
-        #print 'world changed:', how
+        #self.logger.debug('[world changed] %s', how)
         if self.digging_block is not None:
             if self.world.get_block(self.digging_block) == 0:
                 self.digging_block = None # done digging, block is now air
@@ -364,7 +364,7 @@ class BotProtocol(ClientProtocol):
     def send_update_sign(self, coords, lines):
         """ Lines are ['first', 'second', '3', '4'] """
         if len(lines) != 4:
-            print '[Update sign] Invalid number of lines:', lines
+            self.logger.debug('[Update sign] Invalid number of lines: %i', lines)
             return
         lines_data = ''
         for line in lines:
@@ -398,7 +398,7 @@ class BotProtocol(ClientProtocol):
         text = buff.unpack_chat()
         chat_type = buff.unpack('B')
         chat_type = ('Chat', 'System', 'AutoComplete')[chat_type]
-        print '[%s] %s' % (chat_type, text)
+        self.logger.info('[%s] %s', chat_type, text)
 
         if self.spawned and ', ' in text:
             # get the words/args as a list
@@ -433,7 +433,7 @@ class BotProtocol(ClientProtocol):
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
 
-        print 'Position corrected: from', self.coords, 'to', coords
+        self.logger.debug('Position corrected: from %s to %s', self.coords, coords)
 
         # send back and set player position and look
         self.send_player_position_and_look(coords, yaw, pitch)
@@ -562,7 +562,7 @@ class BotProtocol(ClientProtocol):
                 22: "Enables reduced debug for players",
                 23: "Disables reduced debug for players",
         }
-        print 'entity_status: eid', eid, entity_status_dict[status]
+        self.logger.debug('[entity status] eid %i: %s', eid, entity_status_dict[status])
 
     ### blocks ###
 
@@ -657,11 +657,9 @@ class BotProtocol(ClientProtocol):
         window_id = buff.unpack('b')
         slot_nr = buff.unpack('h') # number of the changed slot in the window
         slot = self.unpack_slot(buff) # tuple for slot instantiation
-        if window_id != -1:
+        if window_id != -1: # Notchian server apparently sends window_id = slot_nr = -1 on /clear, ignore
             self.window_handler[window_id].set_slot(slot_nr, *slot)
             self.on_slot_change(window_id, slot_nr)
-        else: # Notchian server apparently sends window_id = slot_nr = -1 on /clear
-            print 'received_set_slot suspects /clear: id', window_id, 'slot', slot_nr
 
     @register("play", 0x30)
     def received_window_items(self, buff):
@@ -681,24 +679,24 @@ class BotProtocol(ClientProtocol):
     @register("play", 0x40)
     def received_disconnect(self, buff):
         reason = buff.unpack_string()
-        print '[Disconnected] %s' % reason
+        self.logger.warn('[Disconnected] %s', reason)
         self.close()
 
     @register("play", 0x42)
     def received_combat(self, buff):
         event = buff.unpack_varint()
         combat_type = ('enter combat', 'end combat', 'entity dead')[event]
-        print '[Combat]:', combat_type,
+        msg = '[Combat]:' + combat_type
         if event == 1: # end combat
             duration = buff.unpack_varint()
             entity_id = buff.unpack('i')
-            print 'duration:', duration, 'entity_id:', entity_id,
+            msg += 'duration: %i, entity_id: %i' % (duration, entity_id)
         if event == 2: # entity dead
             player_id = buff.unpack_varint()
             message = buff.unpack_string()
             entity_id = buff.unpack_varint()
-            print 'player_id:', player_id, 'entity_id:', entity_id, 'message:', message,
-        print
+            msg += 'player_id: %i, entity_id: %i, message: "%s"' % (player_id, entity_id, message)
+        self.logger.info(msg)
 
 
 class BotFactory(ClientFactory):
