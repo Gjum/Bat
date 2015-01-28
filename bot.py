@@ -208,6 +208,7 @@ class BotProtocol(ClientProtocol):
     def on_command(self, cmd, *args):
         print '[Command]', cmd, args
         if cmd == 'path': self.pathfind(*args)
+        elif cmd == 'tp': self.send_player_position(list(map(int, args[:3])))
         elif cmd == 'dig': self.dig_block(*args)
         elif cmd == 'place': self.place_block(*args)
         elif cmd == 'hold': self.hold_item(*args)
@@ -220,6 +221,7 @@ class BotProtocol(ClientProtocol):
             if cmd not in 'help': print 'Unknown command', cmd, args
             print 'Available commands:'
             print '    path <coords>'
+            print '    tp <coords>'
             print '    dig <coords>'
             print '    place <coords>'
             print '    hold <item ID>'
