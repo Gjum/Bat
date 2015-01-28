@@ -33,8 +33,9 @@ class Window:
 
     def set_slot(self, slot_nr, item_id=-1, count=0, damage=0, enchants={}):
         self.slots[slot_nr] = Slot(item_id, count, damage, enchants)
-        window_name = window_dict[self.window_type]['name'] # TODO use window_title
-        print window_name, '- set slot nr', slot_nr, 'to', self.slots[slot_nr]
+        if self.window_type != -1: # suppress for inventory TODO remove
+            window_name = window_dict[self.window_type]['name'] # TODO use window_title
+            print window_name, '- set slot nr', slot_nr, 'to', self.slots[slot_nr]
 
 
 class WindowHandler(dict):
