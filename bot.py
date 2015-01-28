@@ -133,6 +133,12 @@ class BotProtocol(ClientProtocol):
         self.send_select_slot(int(args[0]))
         self.send_player_position()
 
+    def pickup_item_stack(self, eid):
+        if eid not in self.entities:
+            print '[Item pickup] Could not pick up', eid, '- already removed'
+            return
+        print '[Item pickup] Picking up', eid
+        self.pathfind(*self.entities[eid].coords)
 
     def walk_one_block(self, direction):
         direction %= 4
