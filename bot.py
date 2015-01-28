@@ -432,7 +432,6 @@ class BotProtocol(ClientProtocol):
         if not self.spawned:
             self.spawned = True
             self.tasks.add_loop(29, self.send_player_look)
-            self.send_client_settings(16)
 
         print 'Position corrected: from', self.coords, 'to', coords
 
