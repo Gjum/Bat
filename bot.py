@@ -275,16 +275,16 @@ class BotProtocol(ClientProtocol):
                 self.pathfind(*self.pathfind_path[-1])
 
     def on_open_window(self, window_id):
-        pass
+        pass # TODO do something
 
     def on_close_window(self, window_id):
-        pass
+        pass # TODO do something
 
     def on_slot_change(self, window_id, slot_nr):
-        pass
+        pass # TODO do something
 
     def on_confirm_transaction(self, window_id, action_id, accepted):
-        pass
+        pass # TODO do something
 
     ##### Network: sending #####
 
