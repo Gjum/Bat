@@ -25,7 +25,7 @@ def join(timeout, digest, access_token, uuid):
 
     data = {
         "accessToken": str(access_token),
-        "selectedProfile": uuid.to_hex(with_dashes=False),
+        "selectedProfile": uuid.hex,
         "serverId": digest
     }
 

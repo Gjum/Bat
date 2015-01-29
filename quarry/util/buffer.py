@@ -1,7 +1,6 @@
 import struct
 import json
-
-from quarry.util import types
+from uuid import UUID
 
 
 class BufferUnderrun(Exception):
@@ -27,6 +26,8 @@ class Buffer(object):
 
     def restore(self):
         self.buff1 = self.buff2
+
+    ### unpacking ###
 
     def unpack_all(self):
         d = self.buff1
@@ -86,7 +87,9 @@ class Buffer(object):
         return d
 
     def unpack_uuid(self):
-        return types.UUID.from_bytes(self.unpack_raw(16))
+        return UUID(bytes=self.unpack_raw(16))
+
+    ### packing ###
 
     @classmethod
     def pack_raw(cls, data):
@@ -122,4 +125,5 @@ class Buffer(object):
 
     @classmethod
     def pack_uuid(cls, d):
-        return d.to_bytes()
+        return d.bytes
+

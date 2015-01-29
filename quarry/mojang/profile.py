@@ -1,10 +1,9 @@
 import json
+import uuid
 
 from twisted.internet import defer
 from twisted.web import client, error
 from twisted.python import failure
-
-from quarry.util import types
 
 client.HTTPClientFactory.noisy = False
 
@@ -62,7 +61,7 @@ class Profile:
         self.client_token = data['clientToken']
         self.access_token = data['accessToken']
         self.username = data['selectedProfile']['name']
-        self.uuid = types.UUID.from_hex(data['selectedProfile']['id'])
+        self.uuid = UUID(hex=data['selectedProfile']['id'])
 
     def login_offline(self, username):
         self.username = username
@@ -111,7 +110,7 @@ class Profile:
             accessToken = access_token,
             selectedProfile = {
                 "name": username,
-                "id": uuid.to_hex()
+                "id": "%s" % uuid # hex with dashes
             }
         )
         d1.addCallbacks(_callback, _errback)
