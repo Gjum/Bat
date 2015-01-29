@@ -12,19 +12,6 @@ from astar import astar
 from info import packet_dict # TODO only used for logging
 from info import item_or_block
 
-def center_and_jitter(coords):
-    # 0.5: center on block, jitter by 0.2 (player apothem minus a bit)
-    coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
-    coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
-    return coords
-
-def get_yaw_from_movement_delta(delta):
-    """ For rectangular delta, return yaw [0..360); otherwise return 0 """
-    if delta[0] < 0: return  90
-    if delta[2] < 0: return 180
-    if delta[0] > 0: return 270
-    return 0
-
 
 class BotProtocol(ClientProtocol):
 
@@ -151,6 +138,21 @@ class BotProtocol(ClientProtocol):
         self.logger.info('[Item pickup] Picking up %i', eid)
         self.pathfind(*self.entities[eid].coords)
 
+    @staticmethod
+    def center_and_jitter(coords):
+        # 0.5: center on block, jitter by 0.2 (player apothem minus a bit)
+        coords[0] += 0.5 + 0.2 * (1 - 2*random.random())
+        coords[2] += 0.5 + 0.2 * (1 - 2*random.random())
+        return coords
+
+    @staticmethod
+    def get_yaw_from_movement_delta(delta):
+        """ For rectangular delta, return yaw [0..360); otherwise return 0 """
+        if delta[0] < 0: return  90
+        if delta[2] < 0: return 180
+        if delta[0] > 0: return 270
+        return 0
+
     def walk_one_block(self, direction):
         direction %= 4
         old_coords = [int(c) for c in self.coords]
@@ -158,8 +160,8 @@ class BotProtocol(ClientProtocol):
         c = 0 if direction in (1, 3) else 2 # coordinate axis to move on
         d = 1 if direction in (1, 2) else -1 # how far to move
         coords[c] += d
-        coords = center_and_jitter(coords)
-        yaw = get_yaw_from_movement_delta([int(n) - int(o) for n, o in zip(coords, old_coords)])
+        coords = self.center_and_jitter(coords)
+        yaw = self.get_yaw_from_movement_delta([int(n) - int(o) for n, o in zip(coords, old_coords)])
         self.send_player_position_and_look(coords, yaw, 0)
         self.send_player_look(yaw, 0)
 
@@ -199,9 +201,9 @@ class BotProtocol(ClientProtocol):
             self.pathfind_path = None
             self.is_pathfinding = False
         else:
-            coords = center_and_jitter(list(self.pathfind_path.pop(0)))
+            coords = self.center_and_jitter(list(self.pathfind_path.pop(0)))
             delta = [int(n) - int(o) for o, n in zip(self.coords, coords)] # direction bot is walking in
-            yaw = get_yaw_from_movement_delta(delta)
+            yaw = self.get_yaw_from_movement_delta(delta)
             self.send_player_position_and_look(coords, yaw, 0)
             self.send_player_look(yaw, 0)
             if len(self.pathfind_path) <= 0:
