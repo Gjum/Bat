@@ -1,38 +1,39 @@
-# Quarry
+Bat - a Minecraft bot
+=====================
 
-Minecraft protocol implementation - write your own bots, relays, proxies, etc.
+This projects aims to create a Minecraft client that can interact with its environment.
 
-Quarry does not implement every packet, only enough to get through the login
-sequence. Users will need to pack and unpack packets they're interested in, but
-most of the hard stuff (login, session, encryption) is taken care of for you.
+Based on [quarry](https://github.com/barneygale/quarry).
 
-Consult http://wiki.vg/Protocol for packet structs
+Features
+--------
 
-## examples
+- Minecraft 1.8 compatible
+- world awareness
+- entity awareness
+- window access
+- inventory management
+- pathfinding
 
-The distribution includes a few example uses of the `quarry` module.
+### Roadmap
 
-### clients
+- building after a construction plan
+- resource gathering
+- fighting
+- abstraction (API? Plugins?)
 
-* Pinger: does a "server list ping" to get motd, player count, etc
-* Player lister: joins the game, prints the player list to console, quits the
-  game
-* Chat logger: joins the game, prints in-game chat to console, slowly rotates
+Requirements
+------------
 
-### servers
+- Python 2.7
+- PyCrypto
+- Twisted
+- [NBT](https://pypi.python.org/pypi/NBT)
 
-* Downtime server: kicks players with the MOTD when they try to connect
-* Auth server: authenticate users with the mojang session server, then kick
-  them
+Thanks to
+---------
 
-### proxies
-
-* Quiet proxy: Lets users turn on "quiet" mode that hides chat from the server
-
-## requirements
-
-* python 2.7
-* pycrypto
-* twisted
-* nbt
+- [Barney Gale](https://github.com/barneygale) for creating [quarry](https://github.com/barneygale/quarry)
+- the [Minecraft developer community](https://wiki.vg/) for collecting all the technical game information
+- the people at [Mojang](https://mojang.com/) for creating such an awesome game
 
