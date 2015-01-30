@@ -174,6 +174,9 @@ class BotProtocol(ClientProtocol):
 
     ##### Network: sending #####
 
+    def send_chat(self, msg):
+        self.send_packet(0x01, self.buff_type.pack_chat(msg))
+
     def send_player_position(self, coords=None, on_ground=True):
         if coords is not None: self.coords = coords
         self.send_packet(0x04, self.buff_type.pack('ddd?',
@@ -359,7 +362,7 @@ class BotProtocol(ClientProtocol):
         for i in range(count):
             eid = buff.unpack_varint()
             self.entities.remove(eid)
-        self.on_entity_destroyed(eid)
+            self.on_entity_destroyed(eid)
 
     @register("play", 0x15)
     def received_entity_relative_move(self, buff):

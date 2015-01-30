@@ -51,7 +51,7 @@ class EntityHandler(dict):
 
     def add_player(self, eid, uuid='', coords=[0,0,0], yaw=0, pitch=0, data={}, item=0):
         self[eid] = Entity(eid, uuid, coords, yaw, pitch, data)
-        print '[EntityHandler] Player spawned at', coords, 'with ID', eid, 'and UUID', uuid
+        print '[EntityHandler] Player spawned at', coords, 'with ID', eid, 'and UUID', uuid if uuid else '""'
 
     def add_object(self, eid, obj_type, coords, yaw=0, pitch=0, data={}):
         self[eid] = Entity(eid, obj_type, coords, yaw, pitch, data)

@@ -65,6 +65,7 @@ class Bot(BotProtocol):
         for slot_nr, slot in enumerate(self.window_handler.get_hotbar()):
             if slot.item_id == wanted_item_id:
                 self.select_slot(slot_nr)
+                self.logger.info('[Hold item] %s (%s) found, selecting', item_or_block(wanted_item_id)['name'], wanted_item_id)
                 return
         for slot_nr, slot in enumerate(self.window_handler[0].slots):
             if slot.item_id == wanted_item_id:
@@ -72,6 +73,7 @@ class Bot(BotProtocol):
                 # window_id = 0, button = selected_slot, mode = 2
                 self.send_click_window(0, slot_nr, self.selected_slot,
                         self.window_handler.next_action_id(), 2, slot)
+                self.logger.info('[Hold item] %s (%s) found, swapping', item_or_block(wanted_item_id)['name'], wanted_item_id)
                 return
         self.logger.warn('[Hold item] %s (%s) not found in inventory', item_or_block(wanted_item_id)['name'], wanted_item_id)
         return
@@ -127,6 +129,7 @@ class Bot(BotProtocol):
         target = args[:3]
         self.logger.info('[Pathfinding] Finding path to %s...', target)
         try:
+            return
             self.pathfind_path = astar(self.coords, target, self.world)
         except ValueError:
             self.logger.warn('[Pathfinding] Invalid args: %s', args)
@@ -168,20 +171,37 @@ class Bot(BotProtocol):
         self.logger.warn('Respawning')
         self.send_status(0)
 
+    def gravity(self):
+        x, y, z = self.coords
+        for y in reversed(range(int(y))):
+            if self.world.get_block([x, y, z]) != 0:
+                self.send_player_position([x, y+1, z])
+
     ##### Events #####
 
     def on_chat(self, chat_type, text):
+        if 'gjum' in text:
+            return
         if self.spawned and ', ' in text:
             # get the words/args as a list
-            text = str(text[:-1]).split(', ')[1].split(' ')
+            print '[CHAT]', text
+            try:
+                text = str(text[:-1].split(', ')[-1]).split(' ')
+            except:
+                return
             cmd, args = text[0], text[1:]
             self.logger.debug('[Command] %s %s', cmd, args)
             if cmd == 'path': self.pathfind(*args)
-            elif cmd == 'tp': self.send_player_position(list(map(int, args[:3])))
+            elif cmd == 'tp':
+                if len(args) < 3:
+                    print 'moar argh'
+                    return
+                self.send_player_position(list(map(float, args[:3])))
             elif cmd == 'dig': self.dig_block(*args)
             elif cmd == 'place': self.place_block(*args)
             elif cmd == 'hold': self.hold_item(*args)
             elif cmd == 'select': self.select_slot(*args)
+            elif cmd == 'gravity': self.gravity()
             elif cmd == 'n': self.walk_one_block(0)
             elif cmd == 'e': self.walk_one_block(1)
             elif cmd == 's': self.walk_one_block(2)
@@ -195,6 +215,7 @@ class Bot(BotProtocol):
                 print '    place <coords>'
                 print '    hold <item ID>'
                 print '    select <slot>'
+                print '    gravity'
                 print '    n e s w'
         else:
             chat_type = ('Chat', 'System', 'AutoComplete')[chat_type]
@@ -211,10 +232,23 @@ class Bot(BotProtocol):
             self.tasks.add_delay(2.05, cont, self, eid) # wait two seconds and a tick
 
     def on_position_changed(self, old):
+        class debugger:
+            def chat(_, *msg):
+                if len(msg) == 1:
+                    self.send_chat(msg)
+                else:
+                    self.send_chat(msg[0] % msg[1:])
+            def nope(_, *msg):
+                pass
+            debug = nope
+            info = chat
+            warn = chat
+        self.logger = debugger()
+        self.logger.warn('pos corrected: from %s to %s', old, self.coords)
         self.on_world_changed() # TODO affects pathfinding and digging
 
     def on_world_changed(self, how='somehow'):
-        #self.logger.debug('[world changed] %s', how)
+        self.logger.debug('[world changed] %s', how)
         if self.digging_block is not None:
             if self.world.get_block(self.digging_block) == 0:
                 self.digging_block = None # done digging, block is now air
