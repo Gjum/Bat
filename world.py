@@ -151,6 +151,22 @@ class World:
     def __init__(self):
         self.columns = {} # chunk columns are addressed by a tuple (x, z)
 
+    def get_block(self, coords):
+        """ Get the block's ID and meta """
+        data = self.get_block_raw(coords)
+        id = data >> 4
+        meta = data & 0xf
+        return id, meta
+
+    def has_collision(self, coords):
+        """ Does the block have a collision box? """
+        id_below = self.get_block((coords[0], coords[1]-1, coords[2]))[0]
+        # fence/gate below?
+        if id_below in (85, 107, 113): return True
+        if id_below in range(183, 193): return True
+        # no air?
+        return self.get_block(coords)[0] != 0
+
     def unpack(self, buff, coords, bitmask, ground_up_continuous, has_skylight=True):
         """ Unpack one column from the buffer """
         # grab/create relevant chunk column
@@ -162,7 +178,8 @@ class World:
         # unpack chunk column data
         column.unpack(buff, bitmask, ground_up_continuous, has_skylight)
 
-    def get_block(self, coords):
+    def get_block_raw(self, coords):
+        """ Returns the block ID and meta in one value, should get split by get_block """
         if coords[1] < 0 or coords[1] > 255: # outside the world, vertically
             return 0
 
@@ -180,6 +197,7 @@ class World:
         return chunk['block_data'].get(rx, ry, rz)
 
     def set_block(self, coords, data):
+        """ Updates the block ID and meta in one value """
         if coords[1] < 0 or coords[1] > 255: # outside the world, vertically
             return
 

@@ -25,13 +25,13 @@ class AStarNode:
     def is_valid(self, world):
         """ Should the node be checked later? """
         # Can the bot stand here?
-        if world.get_block(self.c_add(0, -1, 0)) == 0: return False
+        if not world.has_collision(self.c_add(0, -1, 0)): return False
         # check air blocks above self when going down and horizontally
         for dy in range(max(2, self.parent.coords[1] - self.coords[1] + 2)):
-            if world.get_block(self.c_add(0, dy, 0)) != 0: return False
+            if world.has_collision(self.c_add(0, dy, 0)): return False
         # check air blocks above parent when going up
         for dy in range(self.coords[1] - self.parent.coords[1]):
-            if world.get_block(self.parent.c_add(0, dy+2, 0)) != 0: return False
+            if world.has_collision(self.parent.c_add(0, dy+2, 0)): return False
         return True
 
     def is_unvisited(self, n_visited):
@@ -52,7 +52,7 @@ class AStarNode:
         for y in range(-2, 2+1): # +1 because range is exclusive
             for x, z in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 new_node = AStarNode(self.c_add(x, y, z), self, finish_coords)
-                if new_node.is_unvisited(n_visited) and new_node.is_valid(world):
+                if new_node.is_valid(world) and new_node.is_unvisited(n_visited):
                     for node in n_open:
                         if new_node.coords == node.coords:
                             # node exists, do not create new one
@@ -115,9 +115,9 @@ def astar(c_from, c_to, world):
 
 if __name__ == '__main__':
     class WorldTest:
-        def get(self, x, y, z, what):
+        def has_collision(self, x, y, z, what):
             if x == 0 and y == 0:
-                return 1
-            return 0
+                return True
+            return False
     world = WorldTest()
     print 'Got path', astar((0, 1, 0), (0, 1, 2), world)
