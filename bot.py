@@ -200,6 +200,12 @@ class Bot(BotProtocol):
             chat_type = ('Chat', 'System', 'AutoComplete')[chat_type]
             self.logger.info('[%s] %s', chat_type, text)
 
+    def on_update_health(self):
+        self.logger.info('health: %i, food: %i, saturation: %i', self.health, self.food, self.saturation)
+        if self.health <= 6 or self.food <= 6:
+            print 'Low health/food, exiting'
+            sys.exit(0)
+
     def on_spawn_object(self, eid):
         #pass # TODO do something
         if self.entities[eid].e_type == 2: # item stack
@@ -211,7 +217,8 @@ class Bot(BotProtocol):
             self.tasks.add_delay(2.05, cont, self, eid) # wait two seconds and a tick
 
     def on_position_changed(self, old):
-        self.on_world_changed() # TODO affects pathfinding and digging
+        self.logger.warn('Pos corrected from %s to %s', old, self.coords)
+        self.on_world_changed('position') # TODO affects pathfinding and digging
 
     def on_world_changed(self, how='somehow'):
         #self.logger.debug('[world changed] %s', how)

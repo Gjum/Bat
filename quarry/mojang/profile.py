@@ -1,5 +1,5 @@
 import json
-import uuid
+from uuid import UUID
 
 from twisted.internet import defer
 from twisted.web import client, error

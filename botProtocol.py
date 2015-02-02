@@ -174,6 +174,9 @@ class BotProtocol(ClientProtocol):
 
     ##### Network: sending #####
 
+    def send_chat(self, msg):
+        self.send_packet(0x01, self.buff_type.pack_string(msg))
+
     def send_player_position(self, coords=None, on_ground=True):
         if coords is not None: self.coords = coords
         self.send_packet(0x04, self.buff_type.pack('ddd?',
@@ -443,6 +446,7 @@ class BotProtocol(ClientProtocol):
         x = location >> 38
         y = (location >> 26) & 0xfff
         z = location & 0x3ffffff
+        if z & (1 << 25): z -= (1 << 26) # fix & not taking into account negative numbers
         self.world.set_block((x, y, z), data)
         self.on_world_changed('received_block_change')
 
@@ -520,5 +524,5 @@ class BotProtocol(ClientProtocol):
             player_id = buff.unpack_varint()
             message = buff.unpack_string()
             entity_id = buff.unpack_varint()
-        self.on_combat(self, event, duration, player_id, entity_id, message)
+        self.on_combat(event, duration, player_id, entity_id, message)
 
