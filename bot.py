@@ -64,14 +64,17 @@ class Bot(BotProtocol):
         # hotbar is at the end of the inventory, search there first
         for slot_nr, slot in enumerate(self.window_handler.get_hotbar()):
             if slot.item_id == wanted_item_id:
+                self.logger.info('[Hold item] %s (%s) found, selecting', item_or_block(wanted_item_id)['name'], wanted_item_id)
                 self.select_slot(slot_nr)
                 return
         for slot_nr, slot in enumerate(self.window_handler[0].slots):
             if slot.item_id == wanted_item_id:
                 # num-swap into hotbar
                 # window_id = 0, button = selected_slot, mode = 2
+                self.logger.info('[Hold item] %s (%s) found, swapping', item_or_block(wanted_item_id)['name'], wanted_item_id)
                 self.send_click_window(0, slot_nr, self.selected_slot,
                         self.window_handler.next_action_id(), 2, slot)
+                self.send_player_position()
                 return
         self.logger.warn('[Hold item] %s (%s) not found in inventory', item_or_block(wanted_item_id)['name'], wanted_item_id)
         return
