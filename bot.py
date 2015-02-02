@@ -74,7 +74,6 @@ class Bot(BotProtocol):
                 self.logger.info('[Hold item] %s (%s) found, swapping', item_or_block(wanted_item_id)['name'], wanted_item_id)
                 self.send_click_window(0, slot_nr, self.selected_slot,
                         self.window_handler.next_action_id(), 2, slot)
-                self.send_player_position()
                 return
         self.logger.warn('[Hold item] %s (%s) not found in inventory', item_or_block(wanted_item_id)['name'], wanted_item_id)
         return
@@ -84,7 +83,6 @@ class Bot(BotProtocol):
             self.logger.warn('Not enough args for select_slot: %s', args)
             return
         self.send_select_slot(int(args[0]))
-        self.send_player_position()
 
     def pickup_item_stack(self, eid):
         if eid not in self.entities:
@@ -142,9 +140,7 @@ class Bot(BotProtocol):
             self.pathfind_path.pop(0) # skip starting position
             self.logger.info('[Pathfinding] Path found: %i blocks long', len(self.pathfind_path))
             if len(self.pathfind_path) == 0:
-                # pathfind_continue would not move the bot, so send position now
-                self.send_player_position()
-                return
+                return # already there
             if not self.is_pathfinding:
                 self.is_pathfinding = True
                 self.pathfind_continue()

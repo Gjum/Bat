@@ -300,15 +300,15 @@ class BotProtocol(ClientProtocol):
         if position_flags & (1 << 3): yaw += self.yaw
         if position_flags & (1 << 4): pitch += self.pitch
 
-        # if client just spawned, start sending player_look to prevent timeout
-        # once per 30s, TODO might skip when sent some other packet recently
-        if not self.spawned:
-            self.spawned = True
-            self.tasks.add_loop(29, self.send_player_look)
-
         # send back and set player position and look
         old = self.coords # keep for callback
         self.send_player_position_and_look(coords, yaw, pitch)
+
+        # client just spawned
+        if not self.spawned:
+            self.spawned = True
+            # send position update every tick to receive health updates and update held item
+            self.tasks.add_loop(1.0/20, self.send_player_position)
 
         self.on_position_changed(old)
 
@@ -410,8 +410,6 @@ class BotProtocol(ClientProtocol):
     def received_entity_status(self, buff):
         eid = buff.unpack('i')
         status = buff.unpack('b')
-        if eid == self.eid and status == 2: # Living Entity hurt, sent on health change
-            self.tasks.add_delay(0.1, self.send_player_position) # send position update to receive health update
         self.on_entity_status(eid, status)
 
     ### blocks ###
