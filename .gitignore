@@ -6,3 +6,4 @@ login.py
 run.py
 contrib/
 /build
+/login_credentials.py
