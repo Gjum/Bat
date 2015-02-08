@@ -3,7 +3,7 @@ from spock.utils import pl_announce
 
 @pl_announce('Chat')
 class ChatPlugin:
-	""" Emits `cmd_<sort>` event with `{name, uuid, sort, text}` on public/private chat and announcements.
+	""" Emits `chat_<sort>` event with `{name, uuid, sort, text}` on public/private chat and announcements.
 	<sort> is pub, msg, or say.
 	`uuid` contains dashes and is Null if not present. """
 
