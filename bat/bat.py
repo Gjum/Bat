@@ -13,7 +13,6 @@ def block_coords(*args):
 	else: raise ValueError('Invalid args for block_coords: %s', args)
 	return [int(floor(c)) for c in coords]
 
-
 class BatPlugin:
 
 	def __init__(self, ploader, settings):
@@ -79,4 +78,3 @@ class BatPlugin:
 	@register_command('clone', '333')
 	def clone(self, c_from, c_to, c_target):
 		pass
-
