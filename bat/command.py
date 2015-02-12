@@ -46,8 +46,6 @@ class CommandRegistry:
 			if cmd:
 				handler = getattr(cls, field_name)
 				self._cmd_handlers[cmd] = (handler, arg_fmt)
-				cls_name = type(cls).__name__
-				logger.debug('[Command] Adding cmd handler %s.%s for %s with arg_fmt %s', cls_name, field_name, cmd, arg_fmt)
 
 	def on_chat(self, data):
 		""" Check for commands in the chat message.

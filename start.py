@@ -12,10 +12,7 @@ plugins.append(('chat', ChatPlugin))
 #client = Client(plugins = plugins, start = settings)
 client = Client(plugins = plugins, settings = {
 	'start': { 'username': 'Bat', },
-	'auth': { 'authenticated': False, }, })
+	'auth': { 'authenticated': False, },
+})
 
-try:
-	client.start('LunarCo.de', 25565)
-except:
-	client.start('localhost', 25565)
-
+client.start('LunarCo.de', 25565)

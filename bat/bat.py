@@ -16,7 +16,8 @@ def block_coords(*args):
 class BatPlugin:
 
 	def __init__(self, ploader, settings):
-		self.client_info = ploader.requires('ClientInfo')
+		self.clinfo = ploader.requires('ClientInfo')
+		self.inventory = ploader.requires('Inventory')
 		self.world = ploader.requires('World')
 		self.command_handler = CommandRegistry(self)
 
@@ -29,7 +30,9 @@ class BatPlugin:
 		for sort in ('pub', 'msg', 'say'):
 			ploader.reg_event_handler('chat_%s' % sort, self.on_chat)
 
-	def debug_event(self, evt, data):
+	@staticmethod
+	def debug_event(evt, data):
+		data = getattr(data, 'data', data)
 		logger.debug(str(data))
 
 	def on_chat(self, evt, data):
@@ -38,8 +41,11 @@ class BatPlugin:
 
 	@register_command('tp', '3')
 	def tp(self, coords):
-		logger.info('tp cmd %s', coords)
-		pass
+		self.clinfo.set_position(coords)
+
+	@register_command('tpb', '3')
+	def tp_block(self, coords):
+		self.clinfo.set_position(block_coords(coords))
 
 	@register_command('gravity')
 	def gravity(self):
@@ -54,27 +60,30 @@ class BatPlugin:
 		pass
 
 	@register_command('select', '1')
-	def select(self, slot_index):
-		pass
+	def select_slot(self, slot_index):
+		self.inventory.select_slot(slot_index)
 
 	@register_command('plan')
-	def plan(self):
+	def print_plan(self):
 		logger.info('plan cmd')
 		pass
 
+	@register_command('hold', '1?')
+	def hold_item(self, id, meta=-1):
+		if self.inventory.hold_item(id, meta):
+			logger.info('Found item %i:%i')
+		else:
+			logger.warn('Could not find item %i:%i')
+
 	@register_command('hotbar', '1*')
-	def hotbar(self, *args):
+	def prepare_hotbar(self, *args):
 		""" Puts items into the hotbar for quick access. """
 		pass
 
-	@register_command('hold', '1?')
-	def hold(self, id, meta=0):
-		pass
-
 	@register_command('path', '3')
-	def path(self, coords):
+	def pathfind(self, coords):
 		pass
 
 	@register_command('clone', '333')
-	def clone(self, c_from, c_to, c_target):
+	def clone_area(self, c_from, c_to, c_target):
 		pass
