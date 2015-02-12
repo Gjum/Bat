@@ -102,14 +102,16 @@ class BatPlugin:
 		logger.info('plan cmd')
 		logger.warn('TODO')
 
-	@register_command('hold', '1?')
-	def hold_item(self, id, meta=-1):
-		if self.inventory.hold_item(id, meta):
-			logger.info('Found item %i:%i')
+	@register_command('hold', '1?1')
+	def hold_item(self, item_id, meta=-1):
+		logger.debug('hold item %s:%s', item_id, meta)
+		found_in = self.inventory.hold_item(item_id, meta)
+		if found_in != '':
+			logger.info('Found item %i:%i in %s', item_id, meta, found_in)
 		else:
-			logger.warn('Could not find item %i:%i')
+			logger.warn('Could not find item %i:%i', item_id, meta)
 
-	@register_command('hotbar', '1*')
+	@register_command('hotbar', '*1')
 	def prepare_hotbar(self, *args):
 		""" Puts items into the hotbar for quick access. """
 		logger.warn('TODO')
