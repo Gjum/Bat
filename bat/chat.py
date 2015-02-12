@@ -34,4 +34,3 @@ class ChatPlugin:
 		else:
 			cmd_info = { 'name': name, 'uuid': uuid, 'sort': sort, 'text': text }
 			self.event.emit('chat_%s' % sort, cmd_info)
-
