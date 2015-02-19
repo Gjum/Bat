@@ -3,6 +3,8 @@ from math import floor
 from bat.command import CommandRegistry, register_command
 
 import logging
+from spock.utils import Vec3
+
 logger = logging.getLogger('spock')
 
 def block_coords(*args):
@@ -39,6 +41,25 @@ class BatPlugin:
 		if not self.command_handler.on_chat(data):
 			logger.info('[Chat] <%s via %s> %s', data['name'], data['sort'], data['text'])
 
+	@register_command('help')
+	def help(self):
+		logger.info('Available commands:')
+		for cmd in (
+				'tp coords',
+				'tpb block_coords',
+				'gravity',
+				'dig coords',
+				'place coords',
+				'int interact_coords',
+				'select slot_index',
+				'plan',
+				'hold item_id meta=-1',
+				'hotbar *prepare_args',
+				'path pathfind_coords',
+				'clone c_from c_to c_target',
+			):
+			logger.info('    %s', cmd)
+
 	@register_command('tp', '3')
 	def tp(self, coords):
 		self.clinfo.set_position(coords)
@@ -58,6 +79,10 @@ class BatPlugin:
 	@register_command('place', '3')
 	def place(self, coords):
 		logger.warn('TODO')
+
+	@register_command('int', '3')
+	def interact(self, coords):
+		self.inventory.interact_with_block(Vec3(*coords))
 
 	@register_command('select', '1')
 	def select_slot(self, slot_index):
