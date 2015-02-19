@@ -49,15 +49,15 @@ class BatPlugin:
 
 	@register_command('gravity')
 	def gravity(self):
-		pass
+		logger.warn('TODO')
 
 	@register_command('dig', '3')
 	def dig(self, coords):
-		pass
+		logger.warn('TODO')
 
 	@register_command('place', '3')
 	def place(self, coords):
-		pass
+		logger.warn('TODO')
 
 	@register_command('select', '1')
 	def select_slot(self, slot_index):
@@ -66,7 +66,7 @@ class BatPlugin:
 	@register_command('plan')
 	def print_plan(self):
 		logger.info('plan cmd')
-		pass
+		logger.warn('TODO')
 
 	@register_command('hold', '1?')
 	def hold_item(self, id, meta=-1):
@@ -78,12 +78,12 @@ class BatPlugin:
 	@register_command('hotbar', '1*')
 	def prepare_hotbar(self, *args):
 		""" Puts items into the hotbar for quick access. """
-		pass
+		logger.warn('TODO')
 
 	@register_command('path', '3')
 	def pathfind(self, coords):
-		pass
+		logger.warn('TODO')
 
 	@register_command('clone', '333')
 	def clone_area(self, c_from, c_to, c_target):
-		pass
+		logger.warn('TODO')
