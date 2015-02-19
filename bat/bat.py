@@ -18,19 +18,28 @@ def block_coords(*args):
 class BatPlugin:
 
 	def __init__(self, ploader, settings):
+
+		for packet_name in (
+				"LOGIN<Login Success", "PLAY<Spawn Player",
+				'PLAY<Held Item Change', 'PLAY<Open Window', 'PLAY<Close Window',
+				'PLAY<Set Slot', 'PLAY<Window Items', 'PLAY<Window Property', 'PLAY<Confirm Transaction',
+				):
+			ploader.reg_event_handler(packet_name, self.debug_event)
+
 		self.clinfo = ploader.requires('ClientInfo')
 		self.inventory = ploader.requires('Inventory')
 		self.world = ploader.requires('World')
 		self.command_handler = CommandRegistry(self)
 
-		ploader.reg_event_handler("LOGIN<Login Success", self.debug_event)
+		for event_name in ('pub', 'msg', 'say'):
+			ploader.reg_event_handler('chat_%s' % event_name, self.on_chat)
 
-		ploader.reg_event_handler("cl_join_game", self.debug_event)
-		ploader.reg_event_handler("cl_health_update", self.debug_event)
-		ploader.reg_event_handler("w_block_update", self.debug_event)
-
-		for sort in ('pub', 'msg', 'say'):
-			ploader.reg_event_handler('chat_%s' % sort, self.on_chat)
+		for packet_name in (
+				"cl_join_game", "cl_health_update", "w_block_update",
+				'inv_held_item_change', 'inv_open_window', 'inv_close_window', 'inv_clear_window',
+				'inv_win_prop', 'inv_set_slot', 'inv_click_accepted', 'inv_click_not_accepted',
+				):
+			ploader.reg_event_handler(packet_name, self.debug_event)
 
 	@staticmethod
 	def debug_event(evt, data):
