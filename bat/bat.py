@@ -1,10 +1,7 @@
-
 from math import floor
 from bat.command import CommandRegistry, register_command
-
-import logging
 from spock.utils import Vec3
-
+import logging
 logger = logging.getLogger('spock')
 
 def block_coords(*args):
@@ -21,8 +18,8 @@ class BatPlugin:
 
 		for packet_name in (
 				"LOGIN<Login Success", "PLAY<Spawn Player",
-				'PLAY<Held Item Change', 'PLAY<Open Window', 'PLAY<Close Window',
-				'PLAY<Set Slot', 'PLAY<Window Items', 'PLAY<Window Property', 'PLAY<Confirm Transaction',
+				'PLAY<Open Window', 'PLAY<Close Window', 'PLAY<Window Items', 'PLAY<Window Property',
+				'PLAY<Held Item Change', 'PLAY<Set Slot', 'PLAY<Confirm Transaction',
 				):
 			ploader.reg_event_handler(packet_name, self.debug_event)
 
@@ -36,15 +33,16 @@ class BatPlugin:
 
 		for packet_name in (
 				"cl_join_game", "cl_health_update", "w_block_update",
-				'inv_held_item_change', 'inv_open_window', 'inv_close_window', 'inv_clear_window',
-				'inv_win_prop', 'inv_set_slot', 'inv_click_accepted', 'inv_click_not_accepted',
+				'inv_open_window', 'inv_close_window', 'inv_win_prop', 'inv_clear_window',
+				'inv_held_item_change', 'inv_set_slot',
+				'inv_click_accepted', 'inv_click_not_accepted', 'inv_click_queue_cleared',
 				):
 			ploader.reg_event_handler(packet_name, self.debug_event)
 
 	@staticmethod
 	def debug_event(evt, data):
 		data = getattr(data, 'data', data)
-		logger.debug(str(data))
+		logger.debug('%s: %s', evt, data)
 
 	def on_chat(self, evt, data):
 		if not self.command_handler.on_chat(data):
