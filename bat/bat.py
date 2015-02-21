@@ -148,8 +148,8 @@ class BatPlugin:
 		else:
 			logger.warn('Could not find item %i:%i', item_id, meta)
 
-	@register_command('hotbar', '*1')
-	def prepare_hotbar(self, *args):
+	@register_command('hotbar', '*')
+	def prepare_hotbar(self, *prepare_args):
 		""" Puts items into the hotbar for quick access. """
 		logger.warn('TODO')
 
