@@ -1,0 +1,5 @@
+*.pyc
+*.log
+/login_credentials.py
+/build/
+/.idea/
