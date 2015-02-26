@@ -1,3 +1,5 @@
+from coordinates import block_coords
+
 class AStarNode:
     def __init__(self, coords, parent, finish_coords):
         self.coords = coords
@@ -15,7 +17,8 @@ class AStarNode:
     def __repr__(self):
         if self.parent is None:
             return 'Source%s' % str(self.coords)
-        return 'Node(c=%s p=%s pd=%f ed=%f td=%f)' % (self.coords, (self.parent.coords if self.parent is not None else 'None'), self.prev_dist, self.estim_dist, self.prev_dist + self.estim_dist)
+        #return 'Node(%i %i %i)' % self.coords
+        return 'Node(c=%s p=%s pd=%s ed=%s td=%s)' % (self.coords, (self.parent.coords if self.parent is not None else 'None'), self.prev_dist, self.estim_dist, self.prev_dist + self.estim_dist)
 
     def c_add(self, *coords):
         """ Returns the translation of coords by self.coords. """
@@ -25,13 +28,13 @@ class AStarNode:
     def is_valid(self, world):
         """ Should the node be checked later? """
         # Can the bot stand here?
-        if world.get_block(self.c_add(0, -1, 0)) == 0: return False
+        if not world.has_collision(self.c_add(0, -1, 0)): return False
         # check air blocks above self when going down and horizontally
         for dy in range(max(2, self.parent.coords[1] - self.coords[1] + 2)):
-            if world.get_block(self.c_add(0, dy, 0)) != 0: return False
+            if world.has_collision(self.c_add(0, dy, 0)): return False
         # check air blocks above parent when going up
         for dy in range(self.coords[1] - self.parent.coords[1]):
-            if world.get_block(self.parent.c_add(0, dy+2, 0)) != 0: return False
+            if world.has_collision(self.parent.c_add(0, dy+2, 0)): return False
         return True
 
     def is_unvisited(self, n_visited):
@@ -52,7 +55,7 @@ class AStarNode:
         for y in range(-2, 2+1): # +1 because range is exclusive
             for x, z in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                 new_node = AStarNode(self.c_add(x, y, z), self, finish_coords)
-                if new_node.is_unvisited(n_visited) and new_node.is_valid(world):
+                if new_node.is_valid(world) and new_node.is_unvisited(n_visited):
                     for node in n_open:
                         if new_node.coords == node.coords:
                             # node exists, do not create new one
@@ -76,13 +79,14 @@ def astar(c_from, c_to, world):
     If there is a path, returns a list of all coordinates that lie on the path.
     Otherwise, returns an empty list."""
     # swap from/to, A* finds a path from finish to start
-    start_coords, finish_coords = map(tuple, (map(int, c_to), map(int, c_from)))
+    start_coords, finish_coords = tuple(block_coords(c_to)), tuple(block_coords(c_from))
     start = AStarNode(start_coords, None, finish_coords)
     finish = AStarNode(finish_coords, None, finish_coords)
     n_open = [start]
     n_visited = []
+    print 'start:', start, 'finish:', finish
 
-    for tries in range(10000):
+    for tries in range(100):
         # find node with shortest path
         best_i = len(n_open)-1
         best_n = n_open[-1]
@@ -90,19 +94,23 @@ def astar(c_from, c_to, world):
             if iter_n.better_than(best_n):
                 best_i = i
                 best_n = iter_n
+        #print 'Nodes:', n_open
         node = n_open.pop(best_i)
         n_visited.append(node)
+        #print 'Best:', node
         # Are we done?
         if node.coords == finish.coords:
             break
         # not done, check neighbors
         node.try_add_neighbors(world, n_visited, n_open, finish_coords)
         if len(n_open) <= 0:
-            print '[A*] no path found, all accessible nodes checked'
+            print '[A*] No path found, all accessible nodes checked,', tries+1 #, 'in total:'
+            #print n_visited
             return []
     else:
-        print '[A*] Took too long to find path, increase tries in ai.py'
+        print '[A*] Took too long to find path, increase tries in astar.py'
         return []
+    print '[A*] Found path after', tries+1, 'steps'
 
     path = []
     # build path by backtracing from finish to start, i.e. from -> to
@@ -115,9 +123,9 @@ def astar(c_from, c_to, world):
 
 if __name__ == '__main__':
     class WorldTest:
-        def get(self, x, y, z, what):
+        def has_collision(self, x, y, z, what):
             if x == 0 and y == 0:
-                return 1
-            return 0
+                return True
+            return False
     world = WorldTest()
     print 'Got path', astar((0, 1, 0), (0, 1, 2), world)

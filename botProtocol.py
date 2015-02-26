@@ -31,7 +31,6 @@ class BotProtocol(ClientProtocol):
     def log_packet(self, prefix, packet_id):
         """ overrides default logging """
         if self.protocol_mode == 'play':
-            prefix = prefix[2:]
             ignored = {
                     'send': [
                         0x00, 0x01,
@@ -175,10 +174,10 @@ class BotProtocol(ClientProtocol):
     ##### Network: sending #####
 
     def send_chat(self, msg):
-        self.send_packet(0x01, self.buff_type.pack_chat(msg))
+        self.send_packet(0x01, self.buff_type.pack_string(msg))
 
     def send_player_position(self, coords=None, on_ground=True):
-        if coords is not None: self.coords = coords
+        if coords is not None: self.coords = list(map(float, coords))
         self.send_packet(0x04, self.buff_type.pack('ddd?',
             self.coords[0],
             self.coords[1],
@@ -300,15 +299,15 @@ class BotProtocol(ClientProtocol):
         if position_flags & (1 << 3): yaw += self.yaw
         if position_flags & (1 << 4): pitch += self.pitch
 
-        # if client just spawned, start sending player_look to prevent timeout
-        # once per 30s, TODO might skip when sent some other packet recently
-        if not self.spawned:
-            self.spawned = True
-            self.tasks.add_loop(29, self.send_player_look)
-
         # send back and set player position and look
         old = self.coords # keep for callback
         self.send_player_position_and_look(coords, yaw, pitch)
+
+        # client just spawned
+        if not self.spawned:
+            self.spawned = True
+            # send position update every tick to receive health updates and update held item
+            self.tasks.add_loop(1.0/20, self.send_player_position)
 
         self.on_position_changed(old)
 
@@ -323,7 +322,7 @@ class BotProtocol(ClientProtocol):
         item = buff.unpack('h')
         data = {}
         buff.discard() # TODO read metadata
-        self.entities.add_player(eid, uuid, coords, yaw, pitch, data, item)
+        #self.entities.add_player(eid, uuid, coords, yaw, pitch, data, item)
         self.on_spawn_player(eid)
 
     @register("play", 0x0e)
@@ -372,7 +371,6 @@ class BotProtocol(ClientProtocol):
         self.entities[eid].relative_move(delta, on_ground)
         self.on_entity_moved(eid)
 
-
     @register("play", 0x16)
     def received_entity_look(self, buff):
         eid = buff.unpack_varint()
@@ -410,8 +408,6 @@ class BotProtocol(ClientProtocol):
     def received_entity_status(self, buff):
         eid = buff.unpack('i')
         status = buff.unpack('b')
-        if eid == self.eid and status == 2: # Living Entity hurt, sent on health change
-            self.tasks.add_delay(0.1, self.send_player_position) # send position update to receive health update
         self.on_entity_status(eid, status)
 
     ### blocks ###
@@ -432,20 +428,22 @@ class BotProtocol(ClientProtocol):
         block_count = buff.unpack_varint()
         for i in range(block_count):
             coord_bits = buff.unpack('H')
+            data = buff.unpack_varint()
             y = coord_bits & 0xff
             z = (chunk_z * 16) + (coord_bits >> 8) & 0xf
             x = (chunk_x * 16) + (coord_bits >> 12) & 0xf
-            data = buff.unpack_varint()
             self.world.set_block((x, y, z), data)
         self.on_world_changed('received_multi_block_change')
 
     @register("play", 0x23)
     def received_block_change(self, buff):
-        location = buff.unpack('Q') # long long, 64bit
+        location = buff.unpack('q') # long long, 64bit
         data = buff.unpack_varint()
         x = location >> 38
         y = (location >> 26) & 0xfff
         z = location & 0x3ffffff
+        if z & (1 << 25): z -= (1 << 26) # fix & not taking into account negative numbers
+        print 'block_change', x, y, z, data
         self.world.set_block((x, y, z), data)
         self.on_world_changed('received_block_change')
 
@@ -523,5 +521,5 @@ class BotProtocol(ClientProtocol):
             player_id = buff.unpack_varint()
             message = buff.unpack_string()
             entity_id = buff.unpack_varint()
-        self.on_combat(self, event, duration, player_id, entity_id, message)
+        self.on_combat(event, duration, player_id, entity_id, message)
 

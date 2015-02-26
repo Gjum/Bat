@@ -1,10 +1,8 @@
 """
-
 This module provides a simple world manager that makes use of the Minecraft SMP packet format internally.
 
 Originally written by Barney Gale, see
 https://github.com/barneygale/smpmap/blob/fe62cd8bb7adf15501956b68534c228c8e5b2847/smpmap.py
-
 """
 
 import array
@@ -151,6 +149,22 @@ class World:
     def __init__(self):
         self.columns = {} # chunk columns are addressed by a tuple (x, z)
 
+    def get_block(self, coords):
+        """ Get the block's ID and meta """
+        data = self.get_block_raw(coords)
+        id = data >> 4
+        meta = data & 0xf
+        return id, meta
+
+    def has_collision(self, coords):
+        """ Does the block have a collision box? """
+        id_below = self.get_block((coords[0], coords[1]-1, coords[2]))[0]
+        # fence/gate below?
+        if id_below in (85, 107, 113): return True
+        if id_below in range(183, 193): return True
+        # no air?
+        return self.get_block(coords)[0] != 0
+
     def unpack(self, buff, coords, bitmask, ground_up_continuous, has_skylight=True):
         """ Unpack one column from the buffer """
         # grab/create relevant chunk column
@@ -162,13 +176,14 @@ class World:
         # unpack chunk column data
         column.unpack(buff, bitmask, ground_up_continuous, has_skylight)
 
-    def get_block(self, coords):
+    def get_block_raw(self, coords):
+        """ Returns the block ID and meta in one value, should get split by get_block """
         if coords[1] < 0 or coords[1] > 255: # outside the world, vertically
             return 0
 
-        x, rx = divmod(int(coords[0]), 16)
-        y, ry = divmod(int(coords[1]), 16)
-        z, rz = divmod(int(coords[2]), 16)
+        x, rx = divmod(coords[0], 16)
+        y, ry = divmod(coords[1], 16)
+        z, rz = divmod(coords[2], 16)
 
         if not (x, z) in self.columns:
             return 0
@@ -180,12 +195,13 @@ class World:
         return chunk['block_data'].get(rx, ry, rz)
 
     def set_block(self, coords, data):
+        """ Updates the block ID and meta in one value """
         if coords[1] < 0 or coords[1] > 255: # outside the world, vertically
             return
 
-        x, rx = divmod(int(coords[0]), 16)
-        y, ry = divmod(int(coords[1]), 16)
-        z, rz = divmod(int(coords[2]), 16)
+        x, rx = divmod(coords[0], 16)
+        y, ry = divmod(coords[1], 16)
+        z, rz = divmod(coords[2], 16)
 
         if (x, z) in self.columns:
             column = self.columns[(x, z)]
@@ -199,8 +215,8 @@ class World:
         chunk['block_data'].put(rx, ry, rz, data)
 
     def get_biome(self, chunk_coords):
-        x, rx = divmod(int(chunk_coords[0]), 16)
-        z, rz = divmod(int(chunk_coords[1]), 16)
+        x, rx = divmod(chunk_coords[0], 16)
+        z, rz = divmod(chunk_coords[1], 16)
 
         if (x, z) not in self.columns:
             return 0
@@ -208,8 +224,8 @@ class World:
         return self.columns[(x, z)].biome.get(rx, rz)
 
     def set_biome(self, chunk_coords, data):
-        x, rx = divmod(int(chunk_coords[0]), 16)
-        z, rz = divmod(int(chunk_coords[1]), 16)
+        x, rx = divmod(chunk_coords[0], 16)
+        z, rz = divmod(chunk_coords[1], 16)
 
         if (x, z) in self.columns:
             column = self.columns[(x, z)]

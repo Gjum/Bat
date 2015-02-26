@@ -42,13 +42,6 @@ class EntityHandler(dict):
         self.drops = set()
         self.hostiles = set()
 
-    # TODO remove
-    def __getitem__(self, eid):
-        if eid not in self:
-            print '[EntityHandler] ERROR Access to unregistered entity', eid, '- creating dummy entity'
-            self[eid] = Entity() # create dummy entity
-        return super(EntityHandler, self).__getitem__(eid)
-
     def add_player(self, eid, uuid='', coords=[0,0,0], yaw=0, pitch=0, data={}, item=0):
         self[eid] = Entity(eid, uuid, coords, yaw, pitch, data)
         print '[EntityHandler] Player spawned at', coords, 'with ID', eid, 'and UUID', uuid if uuid else '""'

@@ -234,7 +234,7 @@ class Protocol(protocol.Protocol, PacketDispatcher, object):
     def packet_received(self, buff, ident):
         """ Dispatches packet to registered handler """
 
-        self.log_packet(". recv", ident)
+        self.log_packet("recv", ident)
 
         dispatched = self.dispatch((self.protocol_mode, ident), buff)
 
@@ -252,7 +252,7 @@ class Protocol(protocol.Protocol, PacketDispatcher, object):
         if self.closed:
             return
 
-        self.log_packet("# send", ident)
+        self.log_packet("send", ident)
 
         # Prepend ident
         data = Buffer.pack_varint(ident) + data

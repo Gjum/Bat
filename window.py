@@ -19,7 +19,7 @@ class Slot:
         ench_str = 'not enchanted'
         if len(self.enchants) > 0:
             # { ench_id: level, ench_id: level, ... } -> "enchanted with Sharpness 3, Silk Touch 1"
-            ench_str = 'enchanted with ' + ', '.join(map(lambda (ench, lvl): '%s %d' % (enchant_dict[ench]['name'], lvl), self.enchants.items()))
+            ench_str = 'enchanted with ' + ', '.join(map(lambda ench, lvl: '%s %d' % (enchant_dict[ench]['name'], lvl), self.enchants.items()))
         return 'slot with %2i %s (%s) %s, %s' % (self.count, name, slot_content_type, damage_str, ench_str)
 
 
@@ -35,8 +35,7 @@ class Window:
         self.slots[slot_nr] = Slot(item_id, count, damage, enchants)
         if self.window_type != -1: # suppress for inventory TODO remove
             window_name = window_dict[self.window_type]['name'] # TODO use window_title
-            print window_name, '- set slot nr', slot_nr, 'to', self.slots[slot_nr]
-
+            print(window_name, '- set slot nr', slot_nr, 'to', self.slots[slot_nr])
 
 class WindowHandler(dict):
     """Handles all open windows and their slots
@@ -53,7 +52,7 @@ class WindowHandler(dict):
 
     def close_window(self, window_id):
         if window_id not in self:
-            print '[WindowHandler] Could not close', window_id
+            print('[WindowHandler] Could not close', window_id)
             return
         del self[window_id]
 
@@ -63,4 +62,3 @@ class WindowHandler(dict):
     def next_action_id(self):
         self.action_id_counter += 1
         return self.action_id_counter
-
