@@ -18,3 +18,10 @@ Features
 - fighting
 - passive background tasks
 
+Usage
+-----
+
+1. Install [SpockBot](https://github.com/SpockBotMC/SpockBot)
+2. Clone this repository: `git clone https://github.com/Gjum/Bat.git && cd Bat`
+3. Start the bot: `python3 start.py`
+
