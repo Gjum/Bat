@@ -111,7 +111,7 @@ class BatPlugin:
 
 	@register_command('help')
 	def help(self):
-		logger.info('Available commands:')
+		logger.info('Some available commands:')
 		for cmd in (
 				'plan',
 				'gravity',
@@ -329,3 +329,28 @@ class BatPlugin:
 	@register_command('clone', '333')
 	def clone_area(self, c_from, c_to, c_target):
 		logger.warn('TODO')
+
+	@register_command('preset')
+	def path_reset(self):
+		self.path_queue = deque()
+
+	@register_command('pgo')
+	def path_go(self):
+		if len(self.path_queue) > 0:
+			self.tp_block(self.path_queue.popleft())
+			self.timer.reg_event_timer(1, self.path_go, runs=1)
+
+	@register_command('padd', '3')
+	def path_add(self, coords):
+		self.path_queue.append(coords)
+
+	@register_command('pade', '3')
+	def path_add_delta(self, delta):
+		if len(self.path_queue) > 0:
+			pos = self.path_queue[-1]
+		else:
+			pos = self.clinfo.position
+			pos = [pos.x, pos.y, pos.z]
+		coords = [c+d for c, d in zip(pos, delta)]
+		self.path_queue.append(coords)
+		logger.debug('appending to path: %s', str(coords))
