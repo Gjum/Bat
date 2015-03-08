@@ -164,9 +164,12 @@ class BatPlugin:
 		self.tp(coords)
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
 
-	@register_command('come', 'e')
-	def tp_to_player(self, player):
-		self.warp_to(Vec(player).c)
+	@register_command('come', '?e')
+	def tp_to_player(self, player=None):
+		if player is None:
+			logger.warn('[Come] No player to teleport to')
+		else:
+			self.warp_to(Vec(player).c)
 
 	@register_command('gravity')
 	def apply_gravity(self):
@@ -329,7 +332,6 @@ class BatPlugin:
 
 	@register_command('hold', '1?1')
 	def hold_item(self, item_id, meta=-1):
-		logger.debug('hold: %s %s', type(item_id), type(meta))
 		logger.debug('hold item %s:%s', item_id, meta)
 		found = self.inventory.hold_item(item_id, meta)
 		if found:

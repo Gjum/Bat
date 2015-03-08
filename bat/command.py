@@ -78,16 +78,18 @@ class CommandPlugin:
 			elif c == '?':  # append next if present
 				optional += 1
 			elif c == 'e':  # player entity that executed the command
-				logger.debug('data=%s, players: %s', data, ', '.join('%s(%s %s %s)' % (hex(p.uuid), p.x, p.y, p.z) for p in self.entities.players.values()))
 				if data['uuid'] is None:  # not executed by a player
-					return None  # TODO return error message
-				wanted_uuid = data['uuid'].replace('-', '')
-				for player_entity in self.entities.players.values():
-					if wanted_uuid == '%032x' % player_entity.uuid:
-						out.append(player_entity)
-						break
+					if optional <= 0:
+						return None  # TODO return error message
 				else:
-					return None
+					wanted_uuid = data['uuid'].replace('-', '')
+					for player_entity in self.entities.players.values():
+						if wanted_uuid == '%032x' % player_entity.uuid:
+							out.append(player_entity)
+							break
+					else:
+						if optional <= 0:
+							return None
 			else:
 				logger.error('[Command] Unknown format: %s in %s at %i', c, arg_fmt, pos)
 		return out
