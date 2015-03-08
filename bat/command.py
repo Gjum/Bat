@@ -83,7 +83,7 @@ class CommandPlugin:
 					return None  # TODO return error message
 				wanted_uuid = data['uuid'].replace('-', '')
 				for player_entity in self.entities.players.values():
-					if wanted_uuid == hex(player_entity.uuid)[2:]:
+					if wanted_uuid == '%032x' % player_entity.uuid:
 						out.append(player_entity)
 						break
 				else:

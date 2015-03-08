@@ -1,5 +1,6 @@
 from collections import deque
 from math import floor, sqrt
+from spock.mcmap import mapdata
 from spock.plugins.helpers.entities import MovementEntity
 from bat.command import CommandRegistry, register_command
 from spock.utils import Vec3
@@ -158,9 +159,9 @@ class BatPlugin:
 	def warp_to(self, coords):
 		self.tp_delta((0, 100, 0))
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
-		self.tp_block((coords[0], 200, coords[2]))
+		self.tp((coords[0], coords[1]+200, coords[2]))
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
-		self.tp_block(coords)
+		self.tp(coords)
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
 
 	@register_command('come', 'e')
@@ -289,7 +290,26 @@ class BatPlugin:
 
 	@register_command('plan')
 	def print_plan(self):
-		logger.warn('TODO')
+		center = Vec(self.clinfo.position)
+		blocks = set() # will contain all present blocks for convenient lookup
+		msg = ''
+		for z in range(-5, 6, 1):
+			msg += '\n'
+			for x in range(-5, 6, 1):
+				block_id, meta = self.world.get_block(*Vec(x, -1, z).add(center).c)
+				blocks.add((block_id, meta))
+				if block_id == 0:
+					msg += '       '
+				elif meta == 0:
+					msg += '%3i    ' % block_id
+				else:
+					msg += '%3i:%-2i ' % (block_id, meta)
+				if x == z == 0:  # mark bot position with [$blockID]
+					msg = msg[:-8] + '[%s]' % msg[-7:-1]
+		for block_id, meta in blocks:  # print names of all present blocks for convenient lookup
+			if block_id != 0:
+				print('%3i: %s' % (block_id, mapdata.get_block(block_id, meta).display_name))
+		print(msg)
 
 	@register_command('click', '1')
 	def click_slot(self, slot):
