@@ -5,13 +5,14 @@ from spock.utils import pl_announce
 class ChatPlugin:
 	""" Emits `chat_<sort>` event with `{name, uuid, sort, text}` on public/private chat and announcements.
 	<sort> is pub, msg, or say.
+	Also emits `chat_any` for each of these.
 	`uuid` contains dashes and is Null if not present. """
 
 	def __init__(self, ploader, settings):
 		self.event = ploader.requires('Event')
-		ploader.reg_event_handler("PLAY<Chat Message", self.check_chat_for_command)
+		ploader.reg_event_handler("PLAY<Chat Message", self.handle_chat)
 
-	def check_chat_for_command(self, evt, packet):
+	def handle_chat(self, evt, packet):
 		data = packet.data
 		try:
 			what = str(data['json_data']['translate'])
@@ -34,3 +35,4 @@ class ChatPlugin:
 		else:
 			cmd_info = { 'name': name, 'uuid': uuid, 'sort': sort, 'text': text }
 			self.event.emit('chat_%s' % sort, cmd_info)
+			self.event.emit('chat_any', cmd_info)
