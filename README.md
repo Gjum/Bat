@@ -12,11 +12,20 @@ Features
 
 ### Roadmap
 
-- pathfinding
-- building after a construction plan
-- resource gathering
-- fighting
+- build after a construction plan
+  - copy existent buildings
+  - build from schematic
+- gather resources
+  - explicit (mine that block, get that dropped item)
+  - implicit (gather materials for diamond sword)
+- fight
+  - attack
+  - retreat
+  - potion usage
 - passive background tasks
+  - eat
+  - collect statistical player/world data
+  - protect other players
 
 Usage
 -----
