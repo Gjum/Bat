@@ -8,7 +8,13 @@ Based on [SpockBot](https://github.com/SpockBotMC/SpockBot).
 Features
 --------
 
-- TODO
+- control via in-game chat commands
+- instant movement to any position (*warp*) or player (*come*)
+- move along pre-defined paths
+- dig and place blocks, interact
+- pick up, hold, use items
+- show inventory and surrounding blocks in terminal output
+- drop items (WIP, can drop single/stack)
 
 ### Roadmap
 

@@ -344,10 +344,6 @@ class BatPlugin:
 		""" Puts items into the hotbar for quick access. """
 		logger.warn('TODO')
 
-	@register_command('path', '3')
-	def pathfind(self, coords):
-		logger.warn('TODO')
-
 	@register_command('clone', '333')
 	def clone_area(self, c_from, c_to, c_target):
 		logger.warn('TODO')
