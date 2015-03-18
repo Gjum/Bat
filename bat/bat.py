@@ -15,6 +15,8 @@ class Vec:
 		return 'Vec(%s)' % str(self.c)
 
 	def set(self, *args):
+		if len(args) == 0:
+			args = [(0,0,0)]
 		first_arg = args[0]
 		if isinstance(first_arg, Vec):
 			self.c = first_arg.c
