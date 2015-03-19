@@ -95,11 +95,17 @@ class BatPlugin:
 		self.pos_update_counter = 0
 
 		for packet_name in (
+				'PLAY<Entity Relative Move',
+				'PLAY<Entity Look And Relative Move',
+				'PLAY<Entity Teleport',
+				):
+			ploader.reg_event_handler(packet_name, self.on_entity_move)
+
+		for packet_name in (
 				'cl_join_game', 'cl_health_update', #'w_block_update',
 				'inv_open_window', 'inv_close_window', 'inv_win_prop',
 				'inv_held_item_change',
 				'inv_set_slot',
-				'inv_click_accepted', 'inv_click_not_accepted', 'inv_click_queue_cleared',
 				):
 			ploader.reg_event_handler(packet_name, self.debug_event)
 
@@ -115,6 +121,11 @@ class BatPlugin:
 		if self.pos_update_counter > 20:
 			self.apply_gravity()
 			self.pos_update_counter = 0
+
+	def on_entity_move(self, evt, data):
+		eid = data.data['eid']
+		if eid in self.entities.players:
+			self.look_entity()  # looks at nearest player
 
 	@register_command('help')
 	def help(self):
@@ -243,6 +254,10 @@ class BatPlugin:
 						look_pos = entity_pos
 		if look_pos:
 			self.look_pos(look_pos)
+
+	@register_command('look', '?e')
+	def look_player(self, player):
+		self.look_pos(Vec(player).c)
 
 	@register_command('dig', '3')
 	def dig_block(self, coords):
