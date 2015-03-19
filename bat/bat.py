@@ -14,6 +14,9 @@ class Vec:
 	def __repr__(self):
 		return 'Vec(%s)' % str(self.c)
 
+	def get_dict(self):
+		return {'x': self.c[0], 'y': self.c[1], 'z': self.c[2]}
+
 	def set(self, *args):
 		if len(args) == 0:
 			args = [(0,0,0)]
@@ -47,8 +50,9 @@ class Vec:
 	def center(self):
 		return self.round().add(.5, .0, .5)
 
-	def dist_sq(self):
-		x, y, z = self.c
+	def dist_sq(self, other=None):
+		v = Vec(other).sub(self) if other else self
+		x, y, z = v.c
 		return x*x + y*y + z*z
 
 	def x(self):
