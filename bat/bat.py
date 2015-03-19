@@ -22,11 +22,11 @@ class Vec:
 			args = [(0,0,0)]
 		first_arg = args[0]
 		if isinstance(first_arg, Vec):
-			self.c = first_arg.c
+			self.c = first_arg.c[:]
 		elif hasattr(first_arg, 'x') and hasattr(first_arg, 'y') and hasattr(first_arg, 'z'):
 			self.c = [first_arg.x, first_arg.y, first_arg.z]
 		elif isinstance(first_arg, list) or isinstance(first_arg, tuple):
-			self.c = first_arg  # argument is coords triple
+			self.c = first_arg[:3]  # argument is coords triple
 		elif len(args) == 3:
 			self.c = args[:3]  # arguments are x, y, z
 		else:
@@ -135,9 +135,7 @@ class BatPlugin:
 				'gravity',
 				'tp coords',
 				'tpb block_coords',
-				'path pathfind_coords',
 				'tpd delta_xyz',
-				'warp coords',
 				'come',
 
 				'dig coords',
@@ -159,26 +157,22 @@ class BatPlugin:
 			):
 			logger.info('    %s', cmd)
 
-	@register_command('tp', '3')
-	def tp(self, coords):
-		pos = self.clinfo.position
-		pos.x, pos.y, pos.z = map(float, coords)
-
 	@register_command('tpb', '3')
 	def tp_block(self, coords):
-		Vec(coords).center().override_vec3(self.clinfo.position)
+		self.teleport(Vec(coords).center())
 
 	@register_command('tpd', '3')
 	def tp_delta(self, deltas):
-		self.clinfo.position.add_vector(*deltas)
+		self.teleport(Vec(self.clinfo.position).add(deltas))
 
-	@register_command('warp', '3')
-	def warp_to(self, coords):
-		self.tp_delta((0, 100, 0))
+	@register_command('tp', '3')
+	def teleport(self, coords):
+		pos = Vec(coords)
+		Vec(self.clinfo.position).add(0, 300, 0).override_vec3(self.clinfo.position)
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
-		self.tp((coords[0], coords[1]+200, coords[2]))
+		Vec(pos).add(0, 300, 0).override_vec3(self.clinfo.position)
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
-		self.tp(coords)
+		pos.override_vec3(self.clinfo.position)
 		self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
 
 	@register_command('come', '?e')
@@ -186,7 +180,7 @@ class BatPlugin:
 		if player is None:
 			logger.warn('[Come] No player to teleport to')
 		else:
-			self.warp_to(Vec(player).c)
+			self.teleport(Vec(player).c)
 
 	@register_command('gravity')
 	def apply_gravity(self):
