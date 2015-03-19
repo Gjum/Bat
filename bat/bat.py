@@ -1,8 +1,8 @@
 from collections import deque
-from math import floor, sqrt
+from math import floor, sqrt, asin, acos, pi
 from spock.mcmap import mapdata
 from spock.plugins.helpers.entities import MovementEntity
-from bat.command import CommandRegistry, register_command
+from bat.command import register_command
 from spock.utils import Vec3
 import logging
 logger = logging.getLogger('spock')
@@ -192,6 +192,57 @@ class BatPlugin:
 				block_pos.add(0, 1, 0).center().override_vec3(pos)
 				logger.debug('[Gravity] Corrected to y=%.2f', pos.y)
 				break
+
+	def look_rel(self, vec):
+		l, _, w = vec.c
+		c = sqrt(l*l + w*w)
+		try:
+			alpha1 = -asin(l/c) / pi * 180
+			alpha2 =  acos(w/c) / pi * 180
+		except ZeroDivisionError:
+			pass
+		else:
+			if alpha2 > 90:
+				yaw = 180 - alpha1
+			else:
+				yaw = alpha1
+			pitch = 0
+			self.net.push_packet('PLAY>Player Look', {
+				'yaw': yaw,
+				'pitch': pitch,
+				'on_ground': self.clinfo.position.on_ground
+			})
+
+	def look_pos(self, pos):
+		self.look_rel(Vec(pos).sub(self.clinfo.position))
+
+	def look_entity(self, eid=None):
+		"""
+		Looks at the entity.
+		If no `eid` is given, looks at the nearest player in range.
+		"""
+		look_pos = None
+		if eid and eid in self.entities.entities:
+			try:
+				look_pos = Vec(self.entities.entities[eid])
+			except ValueError:
+				pass
+		else:  # no eid, look at nearest player in range
+			max_distance_sq_to_look = 8 * 8
+			own_pos = Vec(self.clinfo.position)
+			nearest_entity_delta_sq = max_distance_sq_to_look
+			for entity in self.entities.players.values():
+				try:
+					entity_pos = Vec(entity)
+				except ValueError:
+					pass
+				else:
+					delta_sq = entity_pos.dist_sq(own_pos)
+					if delta_sq < nearest_entity_delta_sq:
+						nearest_entity_delta_sq = delta_sq
+						look_pos = entity_pos
+		if look_pos:
+			self.look_pos(look_pos)
 
 	@register_command('dig', '3')
 	def dig_block(self, coords):
