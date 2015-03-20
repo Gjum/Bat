@@ -1,7 +1,7 @@
 from collections import deque
 from math import floor, sqrt, asin, acos, pi
 from spock.mcmap import mapdata
-from spock.plugins.helpers.entities import MovementEntity
+from spock.plugins.helpers.entities import MovementEntity, PlayerEntity, ClientPlayerEntity
 from bat.command import register_command
 from spock.utils import Vec3
 import logging
@@ -233,21 +233,39 @@ class BatPlugin:
 			except ValueError:
 				pass
 		else:  # no eid, look at nearest player in range
-			max_distance_sq_to_look = 8 * 8
-			own_pos = Vec(self.clinfo.position)
-			nearest_entity_delta_sq = max_distance_sq_to_look
-			for entity in self.entities.players.values():
-				try:
-					entity_pos = Vec(entity)
-				except ValueError:
-					pass
-				else:
-					delta_sq = entity_pos.dist_sq(own_pos)
-					if delta_sq < nearest_entity_delta_sq:
-						nearest_entity_delta_sq = delta_sq
-						look_pos = entity_pos
+			player = self.find_nearest_entity(max_dist=8, test=lambda e: isinstance(e, PlayerEntity))
+			look_pos = Vec(player) if player else None
 		if look_pos:
 			self.look_pos(look_pos)
+
+	def find_nearest_entity(self, search_pos=None, max_dist=4, test=None):
+		search_pos = Vec(search_pos if search_pos else self.clinfo.position)
+		max_dist_sq = max_dist**2 if max_dist else float('inf')
+		nearest_entity = None
+		nearest_dist_sq = max_dist_sq
+		for entity in self.entities.entities.values():
+			# look at all entities that are not the bot itself and pass the test
+			if not isinstance(entity, ClientPlayerEntity) \
+					and (test is None or test(entity)):
+				try:
+					entity_pos = Vec(entity)
+				except ValueError:  # entity has no position
+					continue
+				else:
+					dist_sq = entity_pos.dist_sq(search_pos)
+					if dist_sq < nearest_dist_sq:
+						nearest_dist_sq = dist_sq
+						nearest_entity = entity
+		return nearest_entity
+
+	def interact_entity(self, coords=None, attack=False):
+		vec = Vec(self.clinfo.position) if coords is None else Vec(coords)
+		reach_dist = 4
+		entity = self.find_nearest_entity(vec, reach_dist, test=lambda e: isinstance(e, MovementEntity))
+		if entity:
+			action = 1 if attack else 0
+			self.net.push_packet('PLAY>Use Entity', {'target': entity.eid, 'action': action})
+		return entity
 
 	@register_command('look', '?e')
 	def look_player(self, player):
@@ -271,25 +289,19 @@ class BatPlugin:
 
 	@register_command('int', '?3')
 	def interact_at(self, coords=None):
-		vec = Vec(self.clinfo.position) if coords is None else Vec(coords)
-		entity = None
-		e_dist = float('inf')
-		for e in self.entities.entities.values():
-			if not isinstance(e, MovementEntity): continue
-			dist = vec.sub(e).dist_sq()
-			if dist < e_dist:
-				entity = e
-				e_dist = dist
-		if entity is None:
-			logger.warn('[Interact] Could not find any entity to interact, placing block')
-			block_coords = vec.round().c
+		"""
+		Tries to interact with an entity near the given coordinates
+		or near the client itself.
+		If none is found, tries to interact with the block there.
+		"""
+		entity = self.interact_entity(coords)
+		if entity:
+			logger.info('[Interact] Found entity at %s', Vec(entity).c)
+		elif coords:
+			block_coords = Vec(coords).round().c
+			logger.info('[Interact] Found no entity at %s, clicking block', block_coords)
 			if 0 != self.world.get_block(*block_coords)[0]:
 				self.inventory.interact_with_block(*block_coords)
-		else:
-			dist_from_client_sq = Vec(entity).sub(self.clinfo.position).dist_sq()
-			if dist_from_client_sq > 4*4:
-				logger.warn('[Interact] Out of reach: %i units away', sqrt(dist_from_client_sq))
-			self.inventory.interact_with_entity(entity.eid)
 
 	@register_command('close')
 	def close_window(self):
