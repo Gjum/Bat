@@ -303,6 +303,14 @@ class BatPlugin:
 			if 0 != self.world.get_block(*block_coords)[0]:
 				self.inventory.interact_with_block(*block_coords)
 
+	@register_command('hit', '?3')
+	def attack_entity(self, coords=None):
+		entity = self.interact_entity(coords, True)
+		if entity:
+			logger.info('[Hit] Hit entity at %s', Vec(entity).c)
+		else:
+			logger.warn('[Hit] No entity found near %s', coords)
+
 	@register_command('close')
 	def close_window(self):
 		self.inventory.close_window()
