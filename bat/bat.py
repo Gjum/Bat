@@ -3,7 +3,6 @@ from math import floor, sqrt, asin, acos, pi
 from spock.mcmap import mapdata
 from spock.plugins.helpers.entities import MovementEntity, PlayerEntity, ClientPlayerEntity
 from bat.command import register_command
-from spock.utils import Vec3
 import logging
 logger = logging.getLogger('spock')
 
@@ -275,7 +274,7 @@ class BatPlugin:
 	def dig_block(self, coords):
 		packet = {
 			'status': 0,  # start
-			'location': Vec3(*coords).get_dict(),
+			'location': Vec(*coords).get_dict(),
 			'face': 1,
 		}
 		self.net.push_packet('PLAY>Player Digging', packet)
@@ -284,7 +283,7 @@ class BatPlugin:
 
 	@register_command('place', '3')
 	def place_block(self, coords=None, vec=None):
-		if vec is None: vec = Vec3(*Vec(coords).round().c)
+		if vec is None: vec = Vec(coords).round()
 		self.inventory.interact_with_block(vec)
 
 	@register_command('int', '?3')
@@ -363,7 +362,7 @@ class BatPlugin:
 					logger.debug('[drop handler] Not my slot')
 					return  # ignore
 				slot = self.parent.inventory.find_item(item_id, meta)
-				if slot is False:
+				if slot is None:
 					logger.debug('[drop handler] All available dropped')
 					return True  # nothing to drop left, cancel
 				self.amount -= self.parent.inventory.window.slots[slot].amount
