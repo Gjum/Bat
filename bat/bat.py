@@ -513,3 +513,141 @@ class BatPlugin:
 		coords = [c+d for c, d in zip(pos, delta)]
 		self.path_queue.append(coords)
 		logger.debug('appending to path: %s', str(coords))
+
+	@register_command('test')
+	def test(self):
+		done = [False]  # mutable
+		inv = self.inventory
+
+		def swap_slots(a, b):
+			if bool(inv.cursor_slot) or bool(inv.window.slots[a]):
+				yield inv.click_slot(a)
+			if bool(inv.cursor_slot) or bool(inv.window.slots[b]):
+				yield inv.click_slot(b)
+			if bool(inv.cursor_slot) or bool(inv.window.slots[a]):
+				yield inv.click_slot(a)
+
+		from collections import namedtuple, defaultdict
+		RItem = namedtuple('RecipeItem', 'item meta amount')
+		Recipe = namedtuple('Recipe', 'shapeless shape_in shape_out result')
+
+		recipes = {
+			5: {
+				0: Recipe(
+					True,
+					[RItem(17, 0, 1)],
+					[0],
+					RItem(5, 0, 1)),
+			}
+		}
+
+		def get_amounts(recipe):
+			amounts = defaultdict(int)
+			for item, meta, amount in recipe.shape_in:
+				amounts[(item, meta)] += amount
+			return amounts
+
+		def get_total_amount(slots, item_id, meta=-1):
+			wanted = lambda s: item_id == s.item_id and meta in (-1, s.damage)
+			amount = 0
+			for slot in slots:
+				if wanted(slot):
+					amount += slot.amount
+			return amount
+
+		def click_first_item(item, meta=-1, start=0):
+			found = inv.find_item(item, meta, start)
+			if found:
+				yield inv.click_slot(found)
+				return True
+			return False
+
+		def put_away_or_drop(start=0):
+			inv_has_free_space = yield from click_first_item(-1, start=start)
+			if not inv_has_free_space:
+				logger.debug('[Craft] Inventory full, dropping')
+				yield inv.drop_item(-999, drop_stack=True)
+
+		def craft_task(item, meta=-1, min_amount=1):
+			try:
+				grid_slots = inv.window.craft_grid_slots()
+				craft_size = len(grid_slots)
+				first_inside_craft_grid = grid_slots[0].slot_nr
+				first_outside_craft_grid = grid_slots[-1].slot_nr + 1
+			except AttributeError:
+				logger.error('[Craft] No crafting window open :(')
+				return False
+
+			recipe = list(recipes[item].values())[0] if meta == -1 else recipes[item][meta]
+			logger.info('[Craft] Checking materials for recipe: %s', recipe)
+			while 1:
+				for (mat_item, mat_meta), needed in get_amounts(recipe).items():
+					logger.debug('[Craft mat] Checking for %sx %s:%s', needed, mat_item, mat_meta)
+					has = get_total_amount(inv.window.slots[first_outside_craft_grid:],
+										   mat_item, mat_meta)
+					logger.debug('[Craft mat] %sx %s:%s stored', has, mat_item, mat_meta)
+					if needed > has:
+						logger.info('[Craft mat] No %s:%s found, crafting...', mat_item, mat_meta)
+						material_crafted = yield from craft_task(mat_item, mat_meta, needed - has)
+						if not material_crafted:
+							logger.error('[Craft mat] No %s:%s crafted, aborting', mat_item, mat_meta)
+							return False
+						break
+				else:  # all materials found
+					logger.debug('[Craft mat] All materials found')
+					break  # while
+
+			logger.info('[Craft] Putting materials in...')
+			for grid_nr, (mat_item, mat_meta, mat_amount) in enumerate(recipe.shape_in):
+				for i in range(mat_amount):
+					if inv.cursor_slot.amount < 1:
+						inv_has_material = yield from click_first_item(mat_item, mat_meta, first_outside_craft_grid)
+						if not inv_has_material:
+							logger.error('[Craft put in] No %s:%s found :(', mat_item, mat_meta)
+							return False
+					yield inv.click_slot(grid_nr + first_inside_craft_grid, right=True)
+				# done putting in that item, put away
+				if inv.cursor_slot.amount > 0:
+					yield from put_away_or_drop(first_outside_craft_grid)
+			self.show_inventory()
+
+			out_slot = inv.window.craft_result_slot().slot_nr
+			logger.info('[Craft] Get crafted items from %s', out_slot)
+			total_crafted = 0
+			while total_crafted < min_amount:
+				prev_amt = None  # to stop clicking when a full stack was obtained
+				while min_amount > inv.cursor_slot.amount != prev_amt:
+					logger.debug('[Craft get] min=%s cur=%s prev=%s', min_amount, inv.cursor_slot.amount, prev_amt)
+					prev_amt = inv.cursor_slot.amount
+					yield inv.click_slot(out_slot)
+					self.show_inventory()
+					if inv.cursor_slot.amount <= 0:
+						logger.error('[Craft] Not enough items crafted: %s/%s', total_crafted + inv.cursor_slot.amount, min_amount)
+						return False
+				logger.debug('[Craft get] after: min=%s cur=%s prev=%s', min_amount, inv.cursor_slot.amount, prev_amt)
+				total_crafted += inv.cursor_slot.amount
+				logger.debug('[Craft get] Got %s so far', total_crafted)
+				self.show_inventory()
+				yield from put_away_or_drop(first_outside_craft_grid)
+
+			logger.info('[Craft] Putting materials back')
+			for grid_nr in range(len(grid_slots)):
+				yield inv.click_slot(grid_nr + first_inside_craft_grid)
+				if inv.cursor_slot.amount > 0:
+					yield from put_away_or_drop(first_outside_craft_grid)
+			self.show_inventory()
+
+			logger.info('[Craft] Done!')
+			return True
+
+		logger.debug('adding task')
+		run_task(craft_task(5), self.ploader)
+
+		def log_task():
+			while 1:
+				evt, data = yield ['PLAY<Confirm Transaction', 'bat_craft_done']
+				if evt == 'bat_craft_done':
+					break
+				logger.debug('PLAY<Confirm Transaction %s', data)
+
+		run_task(log_task(), self.ploader)
