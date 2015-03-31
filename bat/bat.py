@@ -264,10 +264,11 @@ class BatPlugin:
 		nice_slot = lambda s: '    --    ' if s.amount <= 0 else '%2ix %3i:%-2i' % (s.amount, s.item_id, s.damage)
 		nice_slots = lambda slots: ' '.join(nice_slot(s) for s in slots)
 		window = self.inventory.window
+		inv_start = window.inventory_slots()[0].slot_nr
 		logger.info('window: %s', nice_slots(window.window_slots()))
 		for line in range(3):
 			i = 9 * line
-			logger.info('inv: %2i %s', i+window.inventory_index(), nice_slots(window.inventory_slots()[i:i+9]))
+			logger.info('inv: %2i %s', i + inv_start, nice_slots(window.inventory_slots()[i:i+9]))
 		logger.info('hotbar: %s', nice_slots(window.hotbar_slots()))
 		logger.info('cursor: %s', nice_slot(self.inventory.cursor_slot))
 
@@ -340,9 +341,13 @@ class BatPlugin:
 				print('%3i: %s' % (block_id, mapdata.get_block(block_id, meta).display_name))
 		print(msg)
 
-	@register_command('click', '1')
-	def click_slot(self, slot):
-		self.inventory.click_slot(slot)
+	@register_command('click', '*')
+	def click_slot(self, *slots):
+		for slot in slots:
+			try:
+				self.inventory.click_slot(slot)
+			except:
+				raise
 
 	@register_command('use')
 	def use_item(self):
@@ -401,9 +406,8 @@ class BatPlugin:
 
 	@register_command('craft', '11?1')
 	def craft_item(self, amount, item, meta=-1):
-		logger.debug('XXXXXX')
 		def cb(response):
-			self.hold_item(5)
+			self.hold_item(item, meta)
 			self.show_inventory()
 			logger.info('[Craft][%sx %s:%s] Response: %s', amount, item, meta, response)
 		self.craft_plugin.craft(item, meta, amount=amount, callback=cb)
