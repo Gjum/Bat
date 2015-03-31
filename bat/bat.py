@@ -410,7 +410,11 @@ class BatPlugin:
 			self.hold_item(item, meta)
 			self.show_inventory()
 			logger.info('[Craft][%sx %s:%s] Response: %s', amount, item, meta, response)
-		self.craft_plugin.craft(item, meta, amount=amount, callback=cb)
+		recipe = self.craft_plugin.craft(item, meta, amount=amount, callback=cb)
+		if recipe:
+			logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s', amount, item, meta, recipe.ingredients)
+		else:
+			logger.info('[Craft][%sx %s:%s] Not crafting, no recipe found', amount, item, meta)
 
 	def swap_slots_task(self, a, b):
 		inv = self.inventory
