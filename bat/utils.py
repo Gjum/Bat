@@ -49,6 +49,10 @@ class Vec:
 		x, y, z = v.c
 		return x*x + y*y + z*z
 
+	def dist_cubic(self, other=None):
+		v = Vec(other).sub(self) if other else self
+		return sum(map(abs, v.c))
+
 	def x(self):
 		return self.c[0]
 
