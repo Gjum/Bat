@@ -257,10 +257,10 @@ class BatPlugin:
 		if entity:
 			logger.info('[Interact] Found entity at %s', Vec(entity).c)
 		elif coords:
-			block_coords = Vec(coords).round().c
+			block_coords = Vec(coords).round()
 			logger.info('[Interact] Found no entity at %s, clicking block', block_coords)
-			if 0 != self.world.get_block(*block_coords)[0]:
-				self.inventory.interact_with_block(*block_coords)
+			if 0 != self.world.get_block(*block_coords.c)[0]:
+				self.inventory.interact_with_block(block_coords.override_vec3())
 
 	@register_command('hit', '?3')
 	def attack_entity(self, coords=None):
@@ -364,12 +364,13 @@ class BatPlugin:
 	def click_slot(self, *slots):
 		for slot in slots:
 			try:
-				self.inventory.click_slot(slot)
+				self.inventory.click_slot(int(slot))
 			except:
 				raise
 
 	@register_command('use')
 	def use_item(self):
+		logger.debug('[Use] %s', self.inventory.get_held_item())
 		packet = {
 			'location': {'x':-1, 'y':255, 'z':-1},
 			'direction': -1,
