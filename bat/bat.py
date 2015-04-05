@@ -1,7 +1,8 @@
 from collections import deque
 from math import sqrt, asin, acos, pi
 from spock.mcmap import mapdata
-from spock.plugins.helpers.entities import MovementEntity, PlayerEntity, ClientPlayerEntity
+from spock.mcp.mcdata import UE_INTERACT, UE_ATTACK
+from spock.plugins.helpers.entities import MovementEntity, PlayerEntity, ClientPlayerEntity, MobEntity
 from bat.command import register_command
 from bat.utils import Vec
 import logging
@@ -34,12 +35,16 @@ class BatPlugin:
 		ploader.reg_event_handler('PLAY>Player Position', self.on_send_position)
 		self.pos_update_counter = 0
 
+		ploader.reg_event_handler('event_tick', self.on_event_tick)
+
 		for packet_name in (
 				'PLAY<Entity Relative Move',
 				'PLAY<Entity Look And Relative Move',
 				'PLAY<Entity Teleport',
 				):
 			ploader.reg_event_handler(packet_name, self.on_entity_move)
+
+		self.checked_entities_this_tick = False
 
 		for packet_name in (
 				'cl_join_game', 'cl_health_update', #'w_block_update',
@@ -53,19 +58,33 @@ class BatPlugin:
 		data = getattr(data, 'data', data)
 		logger.debug('%s: %s', evt, data)
 
-	def handle_chat(self, evt, data):
-		logger.info('[Chat] <%s via %s> %s', data['name'], data['sort'], data['text'])
+	def handle_chat(self, evt, packet):
+		logger.info('[Chat] <%s via %s> %s', packet['name'], packet['sort'], packet['text'])
 
-	def on_send_position(self, evt, data):
+	def on_send_position(self, evt, packet):
 		self.pos_update_counter += 1
 		if self.pos_update_counter > 20:
 			self.apply_gravity()
 			self.pos_update_counter = 0
 
-	def on_entity_move(self, evt, data):
-		eid = data.data['eid']
+	def on_entity_move(self, evt, packet):
+		eid = packet.data['eid']
 		if eid in self.entities.players:
 			self.look_entity()  # looks at nearest player
+		entity = self.entities.entities[eid]
+		# force field
+		if isinstance(entity, MobEntity):
+			self.force_field()
+
+	def force_field(self):
+		own_pos = Vec(self.clinfo.position)
+		for entity in self.entities.mobs.values():
+			if 5*5 > own_pos.dist_sq(entity):
+				self.net.push_packet('PLAY>Use Entity', {'target': entity.eid, 'action': UE_ATTACK})
+		self.checked_entities_this_tick = True
+
+	def on_event_tick(self, evt, packet):
+		self.checked_entities_this_tick = False
 
 	@register_command('help')
 	def help(self):
