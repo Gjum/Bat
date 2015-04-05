@@ -1,4 +1,5 @@
 from math import floor
+from spock.utils import Vec3
 
 class Vec:
 	def __init__(self, *args):
@@ -23,7 +24,7 @@ class Vec:
 		elif len(args) == 3:
 			self.c = args[:3]  # arguments are x, y, z
 		else:
-			raise ValueError('Invalid args for block_coords: %s', args)
+			raise ValueError('Invalid args: %s', args)
 		return self
 
 	def add(self, *args):
@@ -57,6 +58,6 @@ class Vec:
 	def z(self):
 		return self.c[2]
 
-	def override_vec3(self, v3):
+	def override_vec3(self, v3=Vec3()):
 		v3.x, v3.y, v3.z = self.c
 		return v3
