@@ -17,12 +17,12 @@ class BatPlugin:
 				):
 			ploader.reg_event_handler(packet_name, self.debug_event)
 
-		self.ploader = ploader
 		self.path_queue = deque()
 
 		self.clinfo = ploader.requires('ClientInfo')
 		self.craft_plugin = ploader.requires('Craft')
 		self.entities = ploader.requires('Entities')
+		self.event = ploader.requires('Event')
 		self.inventory = ploader.requires('Inventory')
 		self.net = ploader.requires('Net')
 		self.timer_plugin = ploader.requires('Timers')
@@ -335,7 +335,7 @@ class BatPlugin:
 
 		handler = Closure(self, amount).handler
 		if not handler():
-			self.ploader.reg_event_handler('inv_set_slot', handler)
+			self.event.reg_event_handler('inv_set_slot', handler)
 
 	@register_command('plan')
 	def print_plan(self):
