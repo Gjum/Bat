@@ -444,3 +444,70 @@ class BatPlugin:
 			yield inv.click_slot(b)
 		if bool(inv.cursor_slot) or bool(inv.window.slots[a]):
 			yield inv.click_slot(a)
+
+	@register_command('findblocks', '1?1?1?1?1')
+	def find_blocks(self, b_id, b_meta=-1, stop_at=10, min_y=0, max_y=256):
+		prefix = '[Find Blocks][%s:%s]' % (b_id, b_meta)
+		found = 0
+		block_gen = self.iter_blocks(b_id, b_meta, min_y, max_y)
+
+		def find_next(*args):
+			nonlocal stop_at, found
+			chunks_this_tick = 0
+			while chunks_this_tick < 100:  # look at 100 chunks every event_tick
+				chunks_this_tick += 1
+				try:
+					found_block = next(block_gen)
+				except StopIteration:
+					logger.info("%s Done, found all %i", prefix, found)
+					return True
+				if found_block is None:  # another chunk searched, ...
+					return False  # continue search in next tick
+				(x, y, z), (found_id, found_meta) = found_block
+				logger.info('%s Found %s:%s at (%i %i %i)', prefix, found_id, found_meta, x, y, z)
+				found += 1
+				if stop_at - found == 0:  # also continue search if negative stop_at
+					logger.info('%s Done, found %i of them', prefix, found)
+					return True
+
+		self.event.reg_event_handler('event_tick', find_next)
+
+	def iter_blocks(self, id, meta=-1, min_y=0, max_y=256):
+		"""
+		Generates tuples of found blocks in the loaded world.
+		Tuple format: ((x, y, z), (id, meta))
+		Also generates None to indicate that another column (16*16*256 blocks)
+		has been searched. Ignore these or use them for
+		"""
+		pos = self.clinfo.position
+		client_x = (pos.x - 8) // 16  # calculate chunk position now, only substract later
+		client_z = (pos.z - 8) // 16
+
+		# approx. squared distance client - column in chunks
+		def col_dist_sq(col_item):
+			(col_x, col_z), _ = col_item
+			dist_x = client_x - col_x
+			dist_z = client_z - col_z
+			return dist_x * dist_x + dist_z * dist_z
+
+		logger.debug('%i cols to search in', len(self.world.columns))
+
+		for (cx, cz), column in sorted(self.world.columns.items(), key=col_dist_sq):
+			for cy, section in enumerate(column.chunks):
+				if section and min_y // 16 <= cy <= max_y // 16:
+					for i, val in enumerate(section.block_data.data):
+						by = i // 256
+						y = by + 16 * cy
+						if min_y <= y <= max_y:
+							bid, bmeta = val >> 4, val & 0x0F
+							if id == bid and meta in (-1, bmeta):
+								bx = i % 16
+								bz = (i // 16) % 16
+								x = bx + 16 * cx
+								z = bz + 16 * cz
+								yield ((x, y, z), (bid, bmeta))
+			# When the client moves around, it never unloads chunks,
+			# so sometimes there are thousands of columns to search in,
+			# which takes a while. By yielding None, we enable the caller
+			# to do something else after each searched-in column.
+			yield None
