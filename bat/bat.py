@@ -91,23 +91,29 @@ class BatPlugin:
 		logger.info('Some available commands:')
 		for cmd in (
 				'plan',
+				'findblocks id meta=-1 stop_at=10 min_y=0 max_y=256'
+
 				'gravity',
 				'tp coords',
 				'tpb block_coords',
 				'tpd delta_xyz',
 				'come',
+				'look',
 
 				'dig coords',
 				'place coords',
-				'clone c_from c_to c_target',
+				'use',
+				# 'clone c_from c_to c_target',
 
-				'int interact_coords',
+				'hit near_coords=own_pos'
+				'int interact_coords=own_pos',
 				'close',
 
 				'showinv',
 				'showhot',
 				'select slot_index',
-				'hotbar *prepare_args',
+				# 'hotbar *prepare_args',
+				'craft amount item meta=-1',
 
 				'click slot',
 				'hold item_id meta=-1',
