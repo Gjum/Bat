@@ -35,6 +35,8 @@ class BatPlugin:
 		ploader.reg_event_handler('PLAY>Player Position', self.on_send_position)
 		self.pos_update_counter = 0
 
+		ploader.reg_event_handler('cl_health_update', self.on_health_change)
+
 		ploader.reg_event_handler('event_tick', self.on_event_tick)
 
 		for packet_name in (
@@ -83,7 +85,17 @@ class BatPlugin:
 				self.net.push_packet('PLAY>Use Entity', {'target': entity.eid, 'action': UE_ATTACK})
 		self.checked_entities_this_tick = True
 
-	def on_event_tick(self, evt, packet):
+	def on_health_change(self, *args):
+		health = self.clinfo.health.health
+		food = self.clinfo.health.food
+		can_regen = food >= 18
+		can_sprint = food > 6
+		starving = food <= 0
+
+		# what do we want to do now?
+		# TODO eating task
+
+	def on_event_tick(self, *args):
 		self.checked_entities_this_tick = False
 
 	@register_command('help')
