@@ -175,6 +175,10 @@ class BatPlugin:
 				logger.debug('[Gravity] Corrected to y=%.2f', pos.y)
 				break
 
+	@register_command('say', '*')
+	def chat_say(self, *msgs):
+		self.net.push_packet('PLAY>Chat Message', {'message': ' '.join(msgs)})
+
 	def look_rel(self, vec):
 		l, _, w = vec.c
 		c = sqrt(l*l + w*w)
