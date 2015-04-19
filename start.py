@@ -1,10 +1,7 @@
 from spock import Client
 from spock.plugins.core import event, net, auth, timer, ticker
 from spock.plugins.helpers import start, keepalive, clientinfo, entities, world, move, respawn, physics, inventory
-from bat.bat import BatPlugin
-from bat.chat import ChatPlugin
-from bat.command import CommandPlugin
-from bat.craft import CraftPlugin
+from bat import bat, chat, command, craft
 
 plugins = [
 	('event', event.EventPlugin),
@@ -12,6 +9,7 @@ plugins = [
 	('auth', auth.AuthPlugin),
 	('ticker', ticker.TickerPlugin),
 	('timer', timer.TimerPlugin),
+
 	('start', start.StartPlugin),
 	('keepalive', keepalive.KeepalivePlugin),
 	('respawn', respawn.RespawnPlugin),
@@ -21,10 +19,11 @@ plugins = [
 	('entities', entities.EntityPlugin),
 	# ('physics', physics.PhysicsPlugin),
 	('inventory', inventory.InventoryPlugin),
-	('bat', BatPlugin),
-	('chat', ChatPlugin),
-	('commands', CommandPlugin),
-	('craft', CraftPlugin),
+
+	('bat', bat.BatPlugin),
+	('chat', chat.ChatPlugin),
+	('commands', command.CommandPlugin),
+	('craft', craft.CraftPlugin),
 ]
 
 # login_credentials should contain a dict with 'username' and 'password'
