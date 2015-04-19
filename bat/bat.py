@@ -494,22 +494,24 @@ class BatPlugin:
 
 		self.event.reg_event_handler('event_tick', find_next)
 
-	def iter_blocks(self, id, meta=-1, min_y=0, max_y=256):
+	def iter_blocks(self, ids, metas=-1, min_y=0, max_y=256):
 		"""
 		Generates tuples of found blocks in the loaded world.
 		Tuple format: ((x, y, z), (id, meta))
 		Also generates None to indicate that another column (16*16*256 blocks)
-		has been searched. Ignore these or use them for
+		has been searched. Ignore these or use them for pausing between chunks.
+		`ids` and `metas` can be single values.
 		"""
 		pos = self.clinfo.position
-		client_x = (pos.x - 8) // 16  # calculate chunk position now, only substract later
-		client_z = (pos.z - 8) // 16
+		# ensure correct types
+		if isinstance(ids, int): ids = [ids]
+		if metas == -1: metas = ()
 
-		# approx. squared distance client - column in chunks
+		# approx. squared distance client - column center
 		def col_dist_sq(col_item):
-			(col_x, col_z), _ = col_item
-			dist_x = client_x - col_x
-			dist_z = client_z - col_z
+			(col_x, col_z), col = col_item
+			dist_x = pos.x - (col_x*16 + 8)
+			dist_z = pos.z - (col_z*16 + 8)
 			return dist_x * dist_x + dist_z * dist_z
 
 		logger.debug('%i cols to search in', len(self.world.columns))
@@ -522,7 +524,7 @@ class BatPlugin:
 						y = by + 16 * cy
 						if min_y <= y <= max_y:
 							bid, bmeta = val >> 4, val & 0x0F
-							if id == bid and meta in (-1, bmeta):
+							if bid in ids and (not metas or bmeta in metas):
 								bx = i % 16
 								bz = (i // 16) % 16
 								x = bx + 16 * cx
