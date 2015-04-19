@@ -16,11 +16,18 @@ class Vec:
 			args = [(0,0,0)]
 		first_arg = args[0]
 		if isinstance(first_arg, Vec):
-			self.c = first_arg.c[:]
-		elif hasattr(first_arg, 'x') and hasattr(first_arg, 'y') and hasattr(first_arg, 'z'):
-			self.c = [first_arg.x, first_arg.y, first_arg.z]
+			self.c = first_arg.c[:3]
 		elif isinstance(first_arg, list) or isinstance(first_arg, tuple):
 			self.c = first_arg[:3]  # argument is coords triple
+		elif isinstance(first_arg, dict) \
+				and 'x' in first_arg \
+				and 'y' in first_arg \
+				and 'z' in first_arg:
+			self.c = [first_arg['x'], first_arg['y'], first_arg['z']]
+		elif hasattr(first_arg, 'x') \
+				and hasattr(first_arg, 'y') \
+				and hasattr(first_arg, 'z'):
+			self.c = [first_arg.x, first_arg.y, first_arg.z]
 		elif len(args) == 3:
 			self.c = args[:3]  # arguments are x, y, z
 		else:
