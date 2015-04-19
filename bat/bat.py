@@ -305,12 +305,12 @@ class BatPlugin:
 		nice_slot = lambda s: '    --    ' if s.amount <= 0 else '%2ix %3i:%-2i' % (s.amount, s.item_id, s.damage)
 		nice_slots = lambda slots: ' '.join(nice_slot(s) for s in slots)
 		window = self.inventory.window
-		inv_start = window.inventory_slots()[0].slot_nr
-		logger.info('window: %s', nice_slots(window.window_slots()))
+		inv_start = window.inventory_slots[0].slot_nr
+		logger.info('window: %s', nice_slots(window.window_slots))
 		for line in range(3):
 			i = 9 * line
-			logger.info('inv: %2i %s', i + inv_start, nice_slots(window.inventory_slots()[i:i+9]))
-		logger.info('hotbar: %s', nice_slots(window.hotbar_slots()))
+			logger.info('inv: %2i %s', i + inv_start, nice_slots(window.inventory_slots[i:i+9]))
+		logger.info('hotbar: %s', nice_slots(window.hotbar_slots))
 		logger.info('cursor: %s', nice_slot(self.inventory.cursor_slot))
 
 	@register_command('showhot')
