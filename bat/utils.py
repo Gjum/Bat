@@ -73,6 +73,7 @@ class Vec:
 		v3.x, v3.y, v3.z = self.c
 		return v3
 
+
 def run_task(task, event_plugin, callback=None):
 	"""
 	Run the task, that is:
@@ -99,13 +100,13 @@ def run_task(task, event_plugin, callback=None):
 		for event in listening:
 			if event in non_events:
 				listening.clear()
-				handler(event, {'response': event})
+				handler(event, {'response': event}, force=True)
 				break
 			else:
 				event_plugin.reg_event_handler(event, handler)
 
-	def handler(evt, data):
-		if evt not in listening:
+	def handler(evt, data, force=False):
+		if not force and evt not in listening:
 			return True
 		try:
 			response = task.send((evt, data))
