@@ -41,18 +41,16 @@ def to_recipe(raw):
 	recipe = Recipe(result, ingredients, in_shape, out_shape)
 	return recipe
 
-def find_recipes_for(item_id, meta=-1):
+def iter_recipes_for(item_id, meta=-1):
 	try:
 		recipes_for_item = recipes[str(item_id)]
 	except KeyError:
-		return []
+		return
 	else:
-		matching = []
 		for raw in recipes_for_item:
 			recipe = to_recipe(raw)
 			if meta == -1 or meta == recipe.result.meta:
-				matching.append(recipe)
-		return matching
+				yield recipe
 
 @pl_announce('Craft')
 class CraftPlugin:
@@ -62,8 +60,9 @@ class CraftPlugin:
 		ploader.provides('Craft', self)
 
 	def find_recipe(self, item, meta=-1):
-		matching = find_recipes_for(item, meta)
-		return matching[0] if matching else None
+		for matching in iter_recipes_for(item, meta):
+			return matching
+		return None
 
 	def get_total_amounts_needed(self, recipe):
 		totals = defaultdict(int)
