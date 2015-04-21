@@ -32,6 +32,7 @@ class Vec:
 			self.c = args[:3]  # arguments are x, y, z
 		else:
 			raise ValueError('Invalid args: %s', args)
+		self.c = list(map(float, self.c))
 		return self
 
 	def add(self, *args):
@@ -60,12 +61,15 @@ class Vec:
 		v = Vec(other).sub(self) if other else self
 		return sum(map(abs, v.c))
 
+	@property
 	def x(self):
 		return self.c[0]
 
+	@property
 	def y(self):
 		return self.c[1]
 
+	@property
 	def z(self):
 		return self.c[2]
 

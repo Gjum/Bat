@@ -165,10 +165,10 @@ class BatPlugin:
 			block_id, meta = self.world.get_block(*vec.c)
 			return 0 != block_id  # TODO do a proper collision test
 		pos = self.clinfo.position
-		below = Vec(pos).round().add(0, -1, 0)
+		below = Vec(pos).add(0, -1, 0).round()
 		if can_stand_on(below):
 			return  # already on ground
-		for dy in range(below.y()):
+		for dy in range(int(below.y)):
 			block_pos = Vec(below).add(0, -dy, 0)
 			if can_stand_on(block_pos):
 				block_pos.add(0, 1, 0).center().override_vec3(pos)
@@ -256,7 +256,7 @@ class BatPlugin:
 	def dig_block(self, coords):
 		packet = {
 			'status': 0,  # start
-			'location': Vec(*coords).get_dict(),
+			'location': Vec(coords).get_dict(),
 			'face': 1,
 		}
 		self.net.push_packet('PLAY>Player Digging', packet)
