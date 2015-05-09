@@ -3,22 +3,26 @@ Bat - a Minecraft bot
 
 This projects aims to create a Minecraft client that can interact with its environment.
 
-Based on [a modified version](https://github.com/Gjum/SpockBot) of [SpockBot](https://github.com/SpockBotMC/SpockBot).
+Based on [a modified version](https://github.com/Gjum/SpockBot/tree/bat) of [SpockBot](https://github.com/SpockBotMC/SpockBot).
+
+**This project is undergoing a large restructuring phase. Expect it to break.**
 
 Features
 --------
 
 - control via in-game chat commands
-- instant movement to any position (*warp*) or player (*come*)
-- move along pre-defined paths
 - dig and place blocks, interact
-- craft items
 - pick up, hold, use items
-- show inventory and surrounding blocks in terminal output
-- drop items (WIP, can drop single/stack)
+- move along pre-defined paths
+- show inventory and nearby blocks in terminal output
 
 ### Roadmap
 
+See the [GitHub issues](https://github.com/Gjum/Bat/issues) for what I am working on.
+
+- craft items
+- drop items (WIP, can drop single/stack)
+- move to any position or player
 - build after a construction plan
   - copy existent buildings
   - build from schematic
@@ -37,7 +41,6 @@ Features
 Usage
 -----
 
-1. Install [SpockBot](https://github.com/Gjum/SpockBot)
+1. Install [the modified SpockBot](https://github.com/Gjum/SpockBot/tree/bat)
 2. Clone this repository: `git clone https://github.com/Gjum/Bat.git && cd Bat`
 3. Start the bot: `python3 start.py`
-
