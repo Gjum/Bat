@@ -78,7 +78,7 @@ class CommandPlugin:
 			elif c == '?':  # append next if present
 				optional += 1
 			elif c == 'e':  # player entity that executed the command
-				if data['uuid'] is None:  # not executed by a player
+				if 'uuid' not in data or data['uuid'] is None:  # not executed by a player
 					if optional <= 0:
 						return None  # TODO return error message
 				else:

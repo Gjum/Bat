@@ -9,7 +9,7 @@ class Vec:
 		return 'Vec(%s)' % str(self.c)
 
 	def get_dict(self):
-		return {'x': self.c[0], 'y': self.c[1], 'z': self.c[2]}
+		return {'x': self.x, 'y': self.y, 'z': self.z}
 
 	def set(self, *args):
 		if len(args) == 0:
@@ -58,6 +58,7 @@ class Vec:
 		return x*x + y*y + z*z
 
 	def dist_cubic(self, other=None):
+		""" AKA Manhattan distance """
 		v = Vec(other).sub(self) if other else self
 		return sum(map(abs, v.c))
 
