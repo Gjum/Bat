@@ -4,34 +4,34 @@ from spock.plugins.helpers import start, keepalive, clientinfo, entities, world,
 from bat import bat, chat, command, craft
 
 plugins = [
-	('event', event.EventPlugin),
-	('net', net.NetPlugin),
-	('auth', auth.AuthPlugin),
-	('ticker', ticker.TickerPlugin),
-	('timer', timer.TimerPlugin),
+    ('event', event.EventPlugin),
+    ('net', net.NetPlugin),
+    ('auth', auth.AuthPlugin),
+    ('ticker', ticker.TickerPlugin),
+    ('timer', timer.TimerPlugin),
 
-	('start', start.StartPlugin),
-	('keepalive', keepalive.KeepalivePlugin),
-	('respawn', respawn.RespawnPlugin),
-	('move', move.MovementPlugin),
-	('world', world.WorldPlugin),
-	('clientinfo', clientinfo.ClientInfoPlugin),
-	('entities', entities.EntityPlugin),
-	# ('physics', physics.PhysicsPlugin),
-	('inventory', inventory.InventoryPlugin),
+    ('start', start.StartPlugin),
+    ('keepalive', keepalive.KeepalivePlugin),
+    ('respawn', respawn.RespawnPlugin),
+    ('move', move.MovementPlugin),
+    ('world', world.WorldPlugin),
+    ('clientinfo', clientinfo.ClientInfoPlugin),
+    ('entities', entities.EntityPlugin),
+    # ('physics', physics.PhysicsPlugin),
+    ('inventory', inventory.InventoryPlugin),
 
-	('bat', bat.BatPlugin),
-	('chat', chat.ChatPlugin),
-	('commands', command.CommandPlugin),
-	('craft', craft.CraftPlugin),
+    ('bat', bat.BatPlugin),
+    ('chat', chat.ChatPlugin),
+    ('commands', command.CommandPlugin),
+    ('craft', craft.CraftPlugin),
 ]
 
 # login_credentials should contain a dict with 'username' and 'password'
 #from login_credentials import settings
 #client = Client(plugins = plugins, start = settings)
 client = Client(plugins = plugins, settings = {
-	'start': { 'username': 'Bat', },
-	'auth': { 'authenticated': False, },
+    'start': { 'username': 'Bat', },
+    'auth': { 'authenticated': False, },
 })
 
-client.start('LunarCo.de', 25565)
+client.start('localhost', 25565)
