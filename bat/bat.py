@@ -154,7 +154,8 @@ class BatPlugin(PluginBase):
         logger.info('window: %s', nice_slots(window.window_slots))
         for line in range(3):
             i = 9 * line
-            logger.info('inv: %2i %s', i + inv_start, nice_slots(window.inventory_slots[i:i+9]))
+            logger.info('inv: %2i %s', i + inv_start,
+                        nice_slots(window.inventory_slots[i:i+9]))
         logger.info('hotbar: %s', nice_slots(window.hotbar_slots))
         logger.info('cursor: %s', nice_slot(self.inventory.cursor_slot))
 
@@ -210,24 +211,29 @@ class BatPlugin(PluginBase):
     @register_command('plan')
     def print_plan(self):
         center = self.clinfo.position
-        blocks = set() # will contain all present blocks for convenient lookup
+        visible_blocks = set()
         msg = ''
         for z in range(-5, 6, 1):
             msg += '\n'
             for x in range(-5, 6, 1):
-                block_id, meta = self.world.get_block(*Vec(x, -1, z).iadd(center))
-                blocks.add((block_id, meta))
+                block_pos = Vec(x, -1, z).iadd(center)
+                block_id, meta = self.world.get_block(*block_pos)
+                visible_blocks.add((block_id, meta))
+
                 if block_id == 0:
                     msg += '       '
                 elif meta == 0:
                     msg += '%3i    ' % block_id
                 else:
                     msg += '%3i:%-2i ' % (block_id, meta)
-                if x == z == 0:  # mark bot position with [$blockID]
+
+                if x == z == 0:  # mark bot position with brackets: [blockID]
                     msg = msg[:-8] + '[%s]' % msg[-7:-1]
-        for block_id, meta in blocks:  # print names of all present blocks for convenient lookup
+
+        for block_id, meta in sorted(visible_blocks):
             if block_id != 0:
-                print('%3i: %s' % (block_id, mapdata.get_block(block_id, meta).display_name))
+                display_name = mapdata.get_block(block_id, meta).display_name
+                print('%3i: %s' % (block_id, display_name))
         print(msg)
 
     @register_command('click', '*')
@@ -296,21 +302,29 @@ class BatPlugin(PluginBase):
     def craft_item(self, amount, item, meta=-1):
         def cb(response):
             self.show_inventory()
-            logger.info('[Craft][%sx %s:%s] Response: %s', amount, item, meta, response)
+            logger.info('[Craft][%sx %s:%s] Response: %s',
+                        amount, item, meta, response)
         recipe = self.craft.craft(item, meta, amount=amount, callback=cb)
         if recipe:
-            logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s', amount, item, meta, recipe.ingredients)
+            logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s',
+                        amount, item, meta, recipe.ingredients)
         else:
-            logger.info('[Craft][%sx %s:%s] Not crafting, no recipe found', amount, item, meta)
+            logger.info('[Craft][%sx %s:%s] Not crafting, no recipe found',
+                        amount, item, meta)
 
     def swap_slots_task(self, a, b):
-        inv = self.inventory
-        if bool(inv.cursor_slot) or bool(inv.window.slots[a]):
-            yield inv.click_slot(a)
-        if bool(inv.cursor_slot) or bool(inv.window.slots[b]):
-            yield inv.click_slot(b)
-        if bool(inv.cursor_slot) or bool(inv.window.slots[a]):
-            yield inv.click_slot(a)
+        cursor_slot = self.inventory.cursor_slot
+        window_slots = self.inventory.window.slots
+        click_slot = self.inventory.click_slot
+
+        if not cursor_slot.is_empty() or not window_slots[a].is_empty():
+            yield click_slot(a)
+
+        if not cursor_slot.is_empty() or not window_slots[b].is_empty():
+            yield click_slot(b)
+
+        if not cursor_slot.is_empty() or not window_slots[a].is_empty():
+            yield click_slot(a)
 
     @register_command('findblocks', '1?1?1?1?1')
     def find_blocks(self, b_id, b_meta=-1, stop_at=10, min_y=0, max_y=256):
@@ -321,7 +335,7 @@ class BatPlugin(PluginBase):
         def find_next(*args):
             nonlocal stop_at, found
             chunks_this_tick = 0
-            while chunks_this_tick < 100:  # look at 100 chunks every event_tick
+            while chunks_this_tick < 100:  # look at 100 chunks per event_tick
                 chunks_this_tick += 1
                 try:
                     found_block = next(block_gen)
@@ -331,9 +345,11 @@ class BatPlugin(PluginBase):
                 if found_block is None:  # another chunk searched, ...
                     return False  # continue search in next tick
                 (x, y, z), (found_id, found_meta) = found_block
-                logger.info('%s Found %s:%s at (%i %i %i)', prefix, found_id, found_meta, x, y, z)
+                logger.info('%s Found %s:%s at (%i %i %i)',
+                            prefix, found_id, found_meta, x, y, z)
                 found += 1
-                if stop_at - found == 0:  # also continue search if negative stop_at
+                # also continue search if negative stop_at
+                if stop_at - found == 0:
                     logger.info('%s Done, found %i of them', prefix, found)
                     return True
 
@@ -344,7 +360,7 @@ class BatPlugin(PluginBase):
         Generates tuples of found blocks in the loaded world.
         Tuple format: ((x, y, z), (id, meta))
         Also generates None to indicate that another column (16*16*256 blocks)
-        has been searched. Ignore these or use them for pausing between chunks.
+        has been searched. You can use them for pausing between chunks.
         `ids` and `metas` can be single values.
         """
         pos = self.clinfo.position
@@ -362,7 +378,8 @@ class BatPlugin(PluginBase):
 
         logger.debug('%i cols to search in', len(self.world.columns))
 
-        for (cx, cz), column in sorted(self.world.columns.items(), key=col_dist_sq):
+        for (cx, cz), column in sorted(self.world.columns.items(),
+                                       key=col_dist_sq):
             for cy, section in enumerate(column.chunks):
                 if section and min_y // 16 <= cy <= max_y // 16:
                     for i, val in enumerate(section.block_data.data):
