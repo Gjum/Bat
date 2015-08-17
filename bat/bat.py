@@ -1,67 +1,58 @@
 from collections import deque
 from math import sqrt, asin, acos, pi
+import logging
+
 from spock.mcmap import mapdata
 from spock.mcp.mcdata import UE_INTERACT, UE_ATTACK
+from spock.plugins.base import PluginBase
 from spock.plugins.helpers.entities import MovementEntity, PlayerEntity, ClientPlayerEntity, MobEntity
+from spock.vector import Vector3 as Vec
+
 from bat.command import register_command
-from bat.utils import Vec
-import logging
+
 logger = logging.getLogger('spock')
 
-class BatPlugin:
+
+class BatPlugin(PluginBase):
+    requires = ('ClientInfo', 'Entities', 'Inventory', 'World',
+                'Event', 'Net', 'Timers',
+                'Craft', 'Commands')
+    events = {
+        'chat_any': 'handle_chat',
+        'PLAY>Player Position': 'on_send_position',
+        'cl_health_update': 'on_health_change',
+        'event_tick': 'on_event_tick',
+    }
+    # movement updates
+    events.update({e: 'on_entity_move' for e in (
+        'PLAY<Entity Relative Move',
+        'PLAY<Entity Look And Relative Move',
+        'PLAY<Entity Teleport',
+    )})
+    # logged events TODO remove
+    events.update({e: 'debug_event' for e in (
+        'LOGIN<Login Success', 'PLAY<Window Property', 'PLAY>Click Window',
+        'PLAY<Spawn Player', 'PLAY<Player Position and Look',
+        'cl_join_game', 'cl_health_update',
+        'inv_open_window', 'inv_close_window', 'inv_win_prop',
+        'inv_held_item_change', 'inv_set_slot',
+    )})
 
     def __init__(self, ploader, settings):
-        for packet_name in (
-                'LOGIN<Login Success', 'PLAY<Spawn Player', 'PLAY<Player Position and Look',
-                'PLAY<Window Property', 'PLAY>Click Window',
-                ):
-            ploader.reg_event_handler(packet_name, self.debug_event)
-
+        super(BatPlugin, self).__init__(ploader, settings)
+        self.clinfo = self.clientinfo
+        self.commands.register_handlers(self)
         self.path_queue = deque()
-
-        self.clinfo = ploader.requires('ClientInfo')
-        self.craft_plugin = ploader.requires('Craft')
-        self.entities = ploader.requires('Entities')
-        self.event = ploader.requires('Event')
-        self.inventory = ploader.requires('Inventory')
-        self.net = ploader.requires('Net')
-        self.timer_plugin = ploader.requires('Timers')
-        self.world = ploader.requires('World')
-        commands_plugin = ploader.requires('Commands')
-        commands_plugin.register_handlers(self)
-
-        ploader.reg_event_handler('chat_any', self.handle_chat)
-
-        ploader.reg_event_handler('PLAY>Player Position', self.on_send_position)
         self.pos_update_counter = 0
-
-        ploader.reg_event_handler('cl_health_update', self.on_health_change)
-
-        ploader.reg_event_handler('event_tick', self.on_event_tick)
-
-        for packet_name in (
-                'PLAY<Entity Relative Move',
-                'PLAY<Entity Look And Relative Move',
-                'PLAY<Entity Teleport',
-                ):
-            ploader.reg_event_handler(packet_name, self.on_entity_move)
-
         self.checked_entities_this_tick = False
-
-        for packet_name in (
-                'cl_join_game', 'cl_health_update', #'w_block_update',
-                'inv_open_window', 'inv_close_window', 'inv_win_prop',
-                'inv_held_item_change',
-                'inv_set_slot',
-                ):
-            ploader.reg_event_handler(packet_name, self.debug_event)
 
     def debug_event(self, evt, data):
         data = getattr(data, 'data', data)
         logger.debug('%s: %s', evt, data)
 
     def handle_chat(self, evt, packet):
-        logger.info('[Chat] <%s via %s> %s', packet['name'], packet['sort'], packet['text'])
+        logger.info('[Chat] <%s via %s> %s',
+                    packet['name'], packet['sort'], packet['text'])
 
     def on_send_position(self, evt, packet):
         self.pos_update_counter += 1
@@ -79,10 +70,12 @@ class BatPlugin:
             self.force_field()
 
     def force_field(self):
-        own_pos = Vec(self.clinfo.position)
+        own_pos = self.clinfo.position
         for entity in self.entities.mobs.values():
-            if 5*5 > own_pos.dist_sq(entity):
-                self.net.push_packet('PLAY>Use Entity', {'target': entity.eid, 'action': UE_ATTACK})
+            if 5*5 > own_pos.dist_sq(Vec(entity)):
+                self.net.push_packet('PLAY>Use Entity',
+                                     {'target': entity.eid,
+                                      'action': UE_ATTACK})
         self.checked_entities_this_tick = True
 
     def on_health_change(self, *args):
@@ -136,42 +129,36 @@ class BatPlugin:
 
     @register_command('tpb', '3')
     def tp_block(self, coords):
-        self.teleport(Vec(coords).center())
+        self.teleport(Vec(.5, 0, .5).iadd(coords))
 
     @register_command('tpd', '3')
     def tp_delta(self, deltas):
-        self.teleport(Vec(self.clinfo.position).add(deltas))
+        self.teleport(Vec(*deltas).iadd(self.clinfo.position))
 
     @register_command('tp', '3')
     def teleport(self, coords):
-        pos = Vec(coords)
-        Vec(self.clinfo.position).add(0, 300, 0).override_vec3(self.clinfo.position)
-        self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
-        Vec(pos).add(0, 300, 0).override_vec3(self.clinfo.position)
-        self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
-        pos.override_vec3(self.clinfo.position)
-        self.net.push_packet('PLAY>Player Position', self.clinfo.position.get_dict())
+        self.clinfo.position.init(*coords)
 
     @register_command('come', '?e')
     def tp_to_player(self, player=None):
         if player is None:
             logger.warn('[Come] No player to teleport to')
         else:
-            self.teleport(Vec(player).c)
+            self.teleport(Vec(player))
 
     @register_command('gravity')
     def apply_gravity(self):
         def can_stand_on(vec):
-            block_id, meta = self.world.get_block(*vec.c)
+            block_id, meta = self.world.get_block(*vec)
             return 0 != block_id  # TODO do a proper collision test
         pos = self.clinfo.position
-        below = Vec(pos).add(0, -1, 0).round()
+        below = Vec(0, -1, 0).iadd(pos).ifloor()
         if can_stand_on(below):
             return  # already on ground
         for dy in range(int(below.y)):
-            block_pos = Vec(below).add(0, -dy, 0)
+            block_pos = Vec(0, -dy, 0).iadd(below)
             if can_stand_on(block_pos):
-                block_pos.add(0, 1, 0).center().override_vec3(pos)
+                pos.init(.5, 1., .5).iadd(block_pos)
                 logger.debug('[Gravity] Corrected to y=%.2f', pos.y)
                 break
 
@@ -180,7 +167,7 @@ class BatPlugin:
         self.net.push_packet('PLAY>Chat Message', {'message': ' '.join(msgs)})
 
     def look_rel(self, vec):
-        l, _, w = vec.c
+        l, _, w = vec
         c = sqrt(l*l + w*w)
         try:
             alpha1 = -asin(l/c) / pi * 180
@@ -200,7 +187,7 @@ class BatPlugin:
             })
 
     def look_pos(self, pos):
-        self.look_rel(Vec(pos).sub(self.clinfo.position))
+        self.look_rel(pos - self.clinfo.position)
 
     def look_entity(self, eid=None):
         """
@@ -214,18 +201,19 @@ class BatPlugin:
             except ValueError:
                 pass
         else:  # no eid, look at nearest player in range
-            player = self.find_nearest_entity(max_dist=8, test=lambda e: isinstance(e, PlayerEntity))
+            test = lambda e: isinstance(e, PlayerEntity)
+            player = self.find_nearest_entity(max_dist=8, test=test)
             look_pos = Vec(player) if player else None
         if look_pos:
             self.look_pos(look_pos)
 
     def find_nearest_entity(self, search_pos=None, max_dist=4, test=None):
-        search_pos = Vec(search_pos if search_pos else self.clinfo.position)
+        search_pos = search_pos if search_pos else self.clinfo.position
         max_dist_sq = max_dist**2 if max_dist else float('inf')
         nearest_entity = None
         nearest_dist_sq = max_dist_sq
         for entity in self.entities.entities.values():
-            # look at all entities that are not the bot itself and pass the test
+            # look at all entities that are not the bot and pass the test
             if not isinstance(entity, ClientPlayerEntity) \
                     and (test is None or test(entity)):
                 try:
@@ -240,23 +228,26 @@ class BatPlugin:
         return nearest_entity
 
     def interact_entity(self, coords=None, attack=False):
-        vec = Vec(self.clinfo.position) if coords is None else Vec(coords)
+        vec = self.clinfo.position if coords is None else Vec(*coords)
         reach_dist = 4
-        entity = self.find_nearest_entity(vec, reach_dist, test=lambda e: isinstance(e, MovementEntity))
+        test = lambda e: isinstance(e, MovementEntity)
+        entity = self.find_nearest_entity(vec, reach_dist, test=test)
         if entity:
             action = 1 if attack else 0
-            self.net.push_packet('PLAY>Use Entity', {'target': entity.eid, 'action': action})
+            self.net.push_packet('PLAY>Use Entity',
+                                 {'target': entity.eid, 'action': action})
         return entity
 
     @register_command('look', '?e')
     def look_player(self, player):
-        self.look_pos(Vec(player).c)
+        self.look_pos(Vec(player))
 
     @register_command('dig', '3')
     def dig_block(self, coords):
+        # xxx use interact plugin
         packet = {
             'status': 0,  # start
-            'location': Vec(coords).get_dict(),
+            'location': Vec(*coords).get_dict(),
             'face': 1,
         }
         self.net.push_packet('PLAY>Player Digging', packet)
@@ -265,7 +256,8 @@ class BatPlugin:
 
     @register_command('place', '3')
     def place_block(self, coords=None, vec=None):
-        if vec is None: vec = Vec(coords).round()
+        raise NotImplementedError('TODO use Interact plugin')  # xxx
+        if vec is None: vec = Vec(*coords).floor()
         self.inventory.interact_with_block(vec)
 
     @register_command('int', '?3')
@@ -277,18 +269,21 @@ class BatPlugin:
         """
         entity = self.interact_entity(coords)
         if entity:
-            logger.info('[Interact] Found entity at %s', Vec(entity).c)
+            logger.info('[Interact] Found entity at %s', Vec(entity))
         elif coords:
-            block_coords = Vec(coords).round()
-            logger.info('[Interact] Found no entity at %s, clicking block', block_coords)
-            if 0 != self.world.get_block(*block_coords.c)[0]:
-                self.inventory.interact_with_block(block_coords.override_vec3())
+            block_coords = Vec(*coords).floor()
+            block = self.world.get_block(*block_coords)
+            logger.info('[Interact] Found no entity at %s, clicking block %s',
+                        block_coords, block)
+            raise NotImplementedError('TODO use Interact plugin')  # xxx
+            if 0 != block[0]:
+                self.inventory.interact_with_block(block_coords)
 
     @register_command('hit', '?3')
     def attack_entity(self, coords=None):
         entity = self.interact_entity(coords, True)
         if entity:
-            logger.info('[Hit] Hit entity at %s', Vec(entity).c)
+            logger.info('[Hit] Hit entity at %s', Vec(entity))
         else:
             logger.warn('[Hit] No entity found near %s', coords)
 
@@ -297,12 +292,13 @@ class BatPlugin:
         self.inventory.close_window()
 
     @register_command('select', '1')
-    def select_slot(self, slot_index):
-        self.inventory.select_slot(slot_index)
+    def select_active_slot(self, slot_index):
+        self.inventory.select_active_slot(slot_index)
 
     @register_command('showinv')
     def show_inventory(self, *args):
-        nice_slot = lambda s: '    --    ' if s.amount <= 0 else '%2ix %3i:%-2i' % (s.amount, s.item_id, s.damage)
+        nice_slot = lambda s: '    --    ' if s.amount <= 0 \
+            else '%2ix %3i:%-2i' % (s.amount, s.item_id, s.damage)
         nice_slots = lambda slots: ' '.join(nice_slot(s) for s in slots)
         window = self.inventory.window
         inv_start = window.inventory_slots[0].slot_nr
@@ -317,19 +313,19 @@ class BatPlugin:
     def show_hotbar(self):
         self.show_hotbar_slotcounter = 0  # FIXME XXX TODO EVIL HACK
         def cb():
-            self.inventory.select_slot(self.show_hotbar_slotcounter % 9)
+            self.inventory.select_active_slot(self.show_hotbar_slotcounter % 9)
             self.show_hotbar_slotcounter += 1
-        self.timer_plugin.reg_event_timer(0.5, cb, runs=10)
+        self.timers.reg_event_timer(0.5, cb, runs=10)
 
     @register_command('drops', '?1?s')
     def drop_slot(self, slot=None, drop_stack='n'):
-        if type(slot) is str:  # bad argument parsing
+        if type(slot) is str:  # TODO bad argument parsing
             logger.debug('argh')
             drop_stack = slot
             slot = None
         drop_stack = 'n' not in drop_stack
         logger.debug('Dropping: %s %s', slot, drop_stack)
-        self.inventory.drop_item(slot, drop_stack)
+        self.inventory.drop_slot(slot, drop_stack)
 
     @register_command('drop', '1?1?1')
     def drop_item(self, item_id, meta=-1, amount=1):
@@ -344,12 +340,12 @@ class BatPlugin:
                 if self.dropped_slot is not None and self.dropped_slot != data['slot_nr']:
                     logger.debug('[drop handler] Not my slot')
                     return  # ignore
-                slot = self.parent.inventory.find_item(item_id, meta)
+                slot = self.parent.inventory.find_slot(item_id, meta)
                 if slot is None:
                     logger.debug('[drop handler] All available dropped')
                     return True  # nothing to drop left, cancel
-                self.amount -= self.parent.inventory.window.slots[slot].amount
-                self.parent.inventory.drop_item(slot, True)
+                self.amount -= slot.amount
+                self.parent.inventory.drop_slot(slot, drop_stack=True)
                 self.dropped_slot = slot
                 if self.amount <= 0:
                     logger.debug('[drop handler] All wanted dropped')
@@ -361,13 +357,13 @@ class BatPlugin:
 
     @register_command('plan')
     def print_plan(self):
-        center = Vec(self.clinfo.position)
+        center = self.clinfo.position
         blocks = set() # will contain all present blocks for convenient lookup
         msg = ''
         for z in range(-5, 6, 1):
             msg += '\n'
             for x in range(-5, 6, 1):
-                block_id, meta = self.world.get_block(*Vec(x, -1, z).add(center).c)
+                block_id, meta = self.world.get_block(*Vec(x, -1, z).iadd(center))
                 blocks.add((block_id, meta))
                 if block_id == 0:
                     msg += '       '
@@ -384,19 +380,20 @@ class BatPlugin:
 
     @register_command('click', '*')
     def click_slot(self, *slots):
-        for slot in slots:
+        for slot_nr in slots:
             try:
-                self.inventory.click_slot(int(slot))
+                slot = self.inventory.window.slots[int(slot_nr)]
+                self.inventory.click_slot(slot)
             except:
                 raise
 
     @register_command('use')
     def use_item(self):
-        logger.debug('[Use] %s', self.inventory.get_held_item())
+        logger.debug('[Use] %s', self.inventory.active_slot)
         packet = {
             'location': {'x':-1, 'y':255, 'z':-1},
             'direction': -1,
-            'held_item': self.inventory.get_held_item().get_dict(),
+            'held_item': self.inventory.active_slot.get_dict(),
             'cur_pos_x': -1,
             'cur_pos_y': -1,
             'cur_pos_z': -1,
@@ -406,6 +403,7 @@ class BatPlugin:
     @register_command('hold', '1?1')
     def hold_item(self, item_id, meta=-1):
         logger.debug('hold item %s:%s', item_id, meta)
+        raise NotImplementedError('TODO hold item')  # xxx
         found = self.inventory.hold_item(item_id, meta)
         if found:
             logger.info('Found item %i:%i', item_id, meta)
@@ -429,7 +427,7 @@ class BatPlugin:
     def path_go(self):
         if len(self.path_queue) > 0:
             self.tp_block(self.path_queue.popleft())
-            self.timer_plugin.reg_event_timer(1, self.path_go, runs=1)
+            self.timers.reg_event_timer(1, self.path_go, runs=1)
 
     @register_command('padd', '3')
     def path_add(self, coords):
@@ -452,7 +450,7 @@ class BatPlugin:
             self.hold_item(item, meta)
             self.show_inventory()
             logger.info('[Craft][%sx %s:%s] Response: %s', amount, item, meta, response)
-        recipe = self.craft_plugin.craft(item, meta, amount=amount, callback=cb)
+        recipe = self.craft.craft(item, meta, amount=amount, callback=cb)
         if recipe:
             logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s', amount, item, meta, recipe.ingredients)
         else:
