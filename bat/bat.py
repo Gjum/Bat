@@ -2,10 +2,10 @@ from collections import deque
 import logging
 from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
-from spock.plugins.helpers.entities import MobEntity
-from spock.plugins.helpers.interact import PLAYER_HEIGHT
+from spock.mcdata.constants import PLAYER_HEIGHT
 from bat.command import register_command
 from spock.vector import Vector3 as Vec
+
 
 logger = logging.getLogger('spock')
 
@@ -74,7 +74,7 @@ class BatPlugin(PluginBase):
                     self.nearest_player = entity
                     self.interact.look_at(entity_pos)
         # force field
-        if isinstance(entity, MobEntity):
+        if not self.checked_entities_this_tick:
             for entity in self.entities.mobs.values():
                 if 5 * 5 > dist_sq(Vec(entity)):
                     self.interact.attack_entity(entity)
