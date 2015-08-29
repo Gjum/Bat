@@ -75,14 +75,10 @@ class BatPlugin(PluginBase):
                     self.interact.look_at(entity_pos)
         # force field
         if isinstance(entity, MobEntity):
-            self.force_field()
-
-    def force_field(self):
-        own_pos = self.clinfo.position
-        for entity in self.entities.mobs.values():
-            if 5*5 > own_pos.dist_sq(Vec(entity)):
-                self.interact.attack_entity(entity)
-        self.checked_entities_this_tick = True
+            for entity in self.entities.mobs.values():
+                if 5 * 5 > dist_sq(Vec(entity)):
+                    self.interact.attack_entity(entity)
+            self.checked_entities_this_tick = True
 
     def on_health_change(self, *args):
         health = self.clinfo.health.health
