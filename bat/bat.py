@@ -3,6 +3,7 @@ import logging
 from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
 from spock.plugins.helpers.entities import MobEntity
+from spock.plugins.helpers.interact import PLAYER_HEIGHT
 from bat.command import register_command
 from spock.vector import Vector3 as Vec
 
@@ -10,7 +11,7 @@ logger = logging.getLogger('spock')
 
 
 class BatPlugin(PluginBase):
-    requires = ('ClientInfo', 'Entities', 'Inventory', 'World',
+    requires = ('ClientInfo', 'Entities', 'Interact', 'Inventory', 'World',
                 'Event', 'Net', 'Timers',
                 'Craft', 'Commands')
     events = {
