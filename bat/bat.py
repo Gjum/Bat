@@ -42,6 +42,7 @@ class BatPlugin(PluginBase):
         self.path_queue = deque()
         self.pos_update_counter = 0
         self.checked_entities_this_tick = False
+        self.nearest_player = None
 
     def debug_event(self, evt, data):
         data = getattr(data, 'data', data)
@@ -60,6 +61,18 @@ class BatPlugin(PluginBase):
     def on_entity_move(self, evt, packet):
         eid = packet.data['eid']
         entity = self.entities.entities[eid]
+        dist_sq = self.clinfo.position.dist_sq
+        if eid in self.entities.players:
+            entity_pos = Vec(entity).iadd((0, PLAYER_HEIGHT, 0))
+            if entity == self.nearest_player:
+                self.interact.look_at(entity_pos)
+            elif self.nearest_player is None:
+                self.nearest_player = entity
+                self.interact.look_at(entity_pos)
+            else:
+                if dist_sq(entity_pos) < dist_sq(Vec(self.nearest_player)):
+                    self.nearest_player = entity
+                    self.interact.look_at(entity_pos)
         # force field
         if isinstance(entity, MobEntity):
             self.force_field()
