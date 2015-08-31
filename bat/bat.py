@@ -4,6 +4,7 @@ from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
 from spock.mcdata.constants import PLAYER_HEIGHT
 from bat.command import register_command
+from spock.task import TaskCallback
 from spock.vector import Vector3 as Vec
 
 
@@ -314,7 +315,7 @@ class BatPlugin(PluginBase):
             self.show_inventory()
             logger.info('[Craft][%sx %s:%s] Response: %s',
                         amount, item, meta, response)
-        recipe = self.craft.craft(item, meta, amount=amount, callback=cb)
+        recipe = self.craft.craft(item, meta, amount, parent=TaskCallback(cb))
         if recipe:
             logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s',
                         amount, item, meta, recipe.ingredients)
