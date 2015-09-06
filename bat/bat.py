@@ -1,25 +1,125 @@
-from collections import deque
 import logging
+
+from collections import deque
+from spock.mcdata import constants
 from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
-from spock.mcdata.constants import PLAYER_HEIGHT
-from bat.command import register_command
-from spock.task import TaskCallback
+from spock.task import TaskCallback, TaskFailed, RunTask, accept
 from spock.vector import Vector3 as Vec
+
+from bat.command import register_command
 
 
 logger = logging.getLogger('spock')
 
 
-class BatPlugin(PluginBase):
-    requires = ('ClientInfo', 'Entities', 'Interact', 'Inventory', 'World',
-                'Event', 'Net', 'Timers',
-                'Craft', 'Commands')
+import importlib, sys, types
+
+
+class Reloadable(object):
+    """Makes inheriting class instances reloadable."""
+
+    _persistent_attributes = []  # will be kept when reloading
+
+    def capture_args(self, init_args):
+        """
+        Capture original args for calling init on reload.
+        An ancestor should call this in their init with locals() as argument
+        before creating any more local variables:
+
+        >>> class Foo(Reloadable):
+        >>>     def __init__(self, foo, bar=123):
+        >>>         super(self.__class__, self).__init__()
+        >>>         self.foo = foo * bar  # just uses `self`, thus not creating a local var
+        >>>         self.capture_args(locals())  # captures self, foo, bar
+        >>>         tmp = bar ** 2  # creates local var `tmp`
+        >>>         # ...
+        """
+        self._init_args = dict(init_args)
+        for k in list(self._init_args.keys()):
+            if k == 'self' or k[:2] == '__':
+                del self._init_args[k]
+
+    def reload(self, new_module=None):
+        """
+        Reloads the containing module and replaces all instance attributes
+        while keeping the attributes in _persistent_attributes.
+        This is called monkey-patching, see
+        https://filippo.io/instance-monkey-patching-in-python/
+        """
+        if not new_module:
+            new_module = importlib.reload(sys.modules[self.__module__])
+        new_class = getattr(new_module, self.__class__.__name__)
+        persistent = {attr_name: getattr(self, attr_name, None)
+                      for attr_name in self._persistent_attributes}
+        for new_attr_name in dir(new_class):
+            if new_attr_name in ('__class__', '__dict__', '__weakref__'):
+                # do not copy '__dict__', '__weakref__'
+                # but copy '__class__' below
+                continue
+            new_attr = getattr(new_class, new_attr_name)
+            try:  # some attributes are instance methods, bind them to `self`
+                new_attr = types.MethodType(new_attr, self)
+            except TypeError:
+                pass
+            setattr(self, new_attr_name, new_attr)
+        setattr(self, '__class__', new_class)
+        new_class.__init__(self, **getattr(self, '_init_args', {}))
+        for k, v in persistent.items():
+            setattr(self, k, v)
+
+    def try_reload(self):
+        """
+        Try to reload the containing module.
+        If an exception is thrown in the process, catch and return it.
+        Useful to catch syntax errors.
+
+        :return the thrown exception if not successfully reloaded, None otherwise
+        """
+        try:
+            self.reload()
+        except Exception as e:
+            return e
+
+
+class TaskEnder(object):
+    def __init__(self, name):
+        self.name = name
+
+    def on_success(self, data):
+        logger.info('Task "%s" finished successfully: %s', self.name, data)
+
+    def on_error(self, error):
+        logger.warn('Task "%s" failed: %s', self.name, error.args)
+
+
+class TaskChatter(object):
+    def __init__(self, name, interact=None):
+        self.name = name
+        self.interact = interact
+
+    def on_success(self, data):
+        printer = self.interact.chat if self.interact else logger.info
+        printer('Task "%s" finished successfully: %s' % (self.name, data))
+
+    def on_error(self, error):
+        printer = self.interact.chat if self.interact else logger.warn
+        printer('Task "%s" failed: %s' % (self.name, error.args))
+
+
+# noinspection PyUnresolvedReferences
+class BatPlugin(PluginBase):#, Reloadable):
+    _persistent_attributes = ('path_queue', 'event')
+
+    requires = ('Event', 'Net', 'Timers',
+                'ClientInfo', 'Entities', 'Interact', 'World',
+                'Craft', 'Commands', 'Inventory')
     events = {
         'chat_any': 'handle_chat',
         'PLAY>Player Position': 'on_send_position',
         'cl_health_update': 'on_health_change',
         'event_tick': 'on_event_tick',
+        'inv_click_response': 'show_inventory',  # xxx remove
     }
     # movement updates
     events.update({e: 'on_entity_move' for e in (
@@ -29,17 +129,22 @@ class BatPlugin(PluginBase):
     )})
     # logged events TODO remove
     events.update({e: 'debug_event' for e in (
-        'LOGIN<Login Success', 'PLAY<Window Property', 'PLAY>Click Window',
-        'PLAY<Spawn Player', 'PLAY<Player Position and Look',
+        'LOGIN<Login Success', 'PLAY<Player Position and Look',
+        'PLAY<Window Property', 'PLAY>Click Window', 'PLAY<Open Window',
         'cl_join_game', 'cl_health_update',
         'inv_open_window', 'inv_close_window', 'inv_win_prop',
-        'inv_held_item_change', 'inv_set_slot',
+        'inv_held_item_change', 'inv_click_response',
     )})
 
     def __init__(self, ploader, settings):
+        # self.capture_args(locals())
         super(BatPlugin, self).__init__(ploader, settings)
+
         self.clinfo = self.clientinfo
+        self.inv = self.inventory
         self.commands.register_handlers(self)
+        # self.interact.auto_swing = False
+
         self.path_queue = deque()
         self.pos_update_counter = 0
         self.checked_entities_this_tick = False
@@ -64,8 +169,8 @@ class BatPlugin(PluginBase):
         entity = self.entities.entities[eid]
         dist_sq = self.clinfo.position.dist_sq
         if eid in self.entities.players:
-            entity_pos = Vec(entity).iadd((0, PLAYER_HEIGHT, 0))
-            if entity == self.nearest_player:
+            entity_pos = Vec(entity).iadd((0, constants.PLAYER_HEIGHT, 0))
+            if id(entity) == id(self.nearest_player):
                 self.interact.look_at(entity_pos)
             elif self.nearest_player is None:
                 self.nearest_player = entity
@@ -75,7 +180,7 @@ class BatPlugin(PluginBase):
                     self.nearest_player = entity
                     self.interact.look_at(entity_pos)
         # force field
-        if not self.checked_entities_this_tick:
+        if False and not self.checked_entities_this_tick:  # xxx reactivate
             for entity in self.entities.mobs.values():
                 if 5 * 5 > dist_sq(Vec(entity)):
                     self.interact.attack_entity(entity)
@@ -104,6 +209,45 @@ class BatPlugin(PluginBase):
             logger.info("Too many entities, bye!")
             self.event.kill()  # disconnect
 
+    @register_command('reload')
+    def reload_now(self):  # xxx broken do not use
+
+        def unregister_handlers():
+            try:
+                for event, handler_name in self.events.items():
+                    handler = getattr(self, handler_name)
+                    if handler in self.event.event_handlers[event]:
+                        self.event.event_handlers[event].remove(handler)
+            except AttributeError:
+                pass
+
+        def do_the_reload():
+            unregister_handlers()
+            # setattr(self, 'reloaded', True)
+            e = self.try_reload()
+            if e is None:
+                unregister_handlers()
+                logger.debug('[Bat] reloaded')
+            else:
+                logger.debug('[Bat] not reloaded: %s', e)
+
+        def wait(time):
+            cb = lambda *_: self.event.emit('sleep_over', {})
+            self.timers.reg_event_timer(time, cb, runs=1)
+            return 'sleep_over', accept
+
+        chat = lambda *texts: self.event.emit('chat_any', {
+            'name': 'RELOADER', 'sort': 'TEST', 'text': ' '.join(texts)})
+
+        def task():
+            chat('before reload 123')
+            do_the_reload()
+            yield wait(1)
+            chat('after reload 234')
+
+        RunTask(task(), self.event.reg_event_handler,
+                TaskChatter('Reloader', self.interact))
+
     @register_command('tpb', '3')
     def tp_block(self, coords):
         self.teleport(Vec(.5, 0, .5).iadd(coords))
@@ -115,6 +259,7 @@ class BatPlugin(PluginBase):
     @register_command('tp', '3')
     def teleport(self, coords):
         self.clinfo.position.init(*coords)
+        # self.interact.chat('/tp %i %i %i' % coords))
 
     @register_command('come', '?e')
     def tp_to_player(self, player=None):
@@ -151,16 +296,73 @@ class BatPlugin(PluginBase):
     def place_block(self, pos):
         self.interact.place_block(Vec(*pos).ifloor())
 
+    @register_command('open', '3')
+    def open_block(self, pos):
+        self.interact.click_block(Vec(*pos).ifloor())
+
+    @register_command('ent', '3')
+    def interact_entity(self, pos):
+        get_target_dist = Vec(*pos).dist_sq
+
+        unreachable = lambda pos: self.clinfo.position.dist_sq(pos) > 4 * 4
+
+        nearest_dist = float('inf')
+        nearest_ent = None
+
+        for current_entity in self.entities.entities.values():
+            try:
+                current_pos = Vec(current_entity)
+            except AttributeError:
+                logger.debug('Entity %s has no position %s',
+                             current_entity.__class__.__name__,
+                             current_entity.__dict__)
+                continue  # has no position
+
+            if unreachable(current_pos):
+                continue
+
+            current_dist = get_target_dist(current_pos)
+            if nearest_dist > current_dist:  # closer to target pos
+                nearest_dist = current_dist
+                logger.debug('Entity %s is closer than %s',
+                             current_entity.__class__.__name__,
+                             nearest_ent.__class__.__name__)
+                nearest_ent = current_entity
+            else:
+                logger.debug('Entity %s isnt closer than %s %s',
+                             current_entity.__class__.__name__,
+                             nearest_ent.__class__.__name__,
+                             current_entity.__dict__)
+
+        if nearest_ent:
+            self.interact.use_entity(nearest_ent)
+            logger.debug('Clicked entity %s at %s',
+                         nearest_ent.__class__.__name__, Vec(nearest_ent))
+        else:
+            logger.warn('No entity near %s', pos)
+
+    @register_command('openinv')
+    def open_inventory(self):
+        self.interact.open_inventory()
+
+    @register_command('sneak', '?1')
+    def sneak(self, on=1):
+        self.interact.sneak(bool(on))
+
+    @register_command('action', '1')
+    def entity_action(self, nr):
+        self.interact._entity_action(nr)
+
     @register_command('select', '1')
     def select_active_slot(self, slot_index):
-        self.inventory.select_active_slot(slot_index)
+        self.inv.select_active_slot(slot_index)
 
     @register_command('showinv')
     def show_inventory(self, *args):
         nice_slot = lambda s: '    --    ' if s.amount <= 0 \
             else '%2ix %3i:%-2i' % (s.amount, s.item_id, s.damage)
         nice_slots = lambda slots: ' '.join(nice_slot(s) for s in slots)
-        window = self.inventory.window
+        window = self.inv.window
         inv_start = window.inventory_slots[0].slot_nr
         logger.info('window: %s', nice_slots(window.window_slots))
         for line in range(3):
@@ -168,14 +370,14 @@ class BatPlugin(PluginBase):
             logger.info('inv: %2i %s', i + inv_start,
                         nice_slots(window.inventory_slots[i:i+9]))
         logger.info('hotbar: %s', nice_slots(window.hotbar_slots))
-        logger.info('cursor: %s', nice_slot(self.inventory.cursor_slot))
+        logger.info('cursor: %s', nice_slot(self.inv.cursor_slot))
 
     @register_command('showhot')
     def show_hotbar(self):
         show_hotbar_slotcounter = 0
         def cb():
             nonlocal show_hotbar_slotcounter
-            self.inventory.select_active_slot(show_hotbar_slotcounter % 9)
+            self.inv.select_active_slot(show_hotbar_slotcounter % 9)
             show_hotbar_slotcounter += 1
         self.timers.reg_event_timer(0.5, cb, runs=10)
 
@@ -188,10 +390,10 @@ class BatPlugin(PluginBase):
             slot = None
         drop_stack = 'n' not in drop_stack
         logger.debug('Dropping: %s %s', slot, drop_stack)
-        self.inventory.drop_slot(slot, drop_stack)
+        self.inv.drop_slot(slot, drop_stack)
 
     @register_command('drop', '1?1?1')
-    def drop_item(self, item_id, meta=-1, amount=1):
+    def drop_item(self, item_id, meta=None, amount=1):
         logger.debug('[drop handler] Dropping %ix %i:%i', amount, item_id, meta)
         class Closure:
             def __init__(self, parent, amount):
@@ -248,13 +450,10 @@ class BatPlugin(PluginBase):
         print(msg)
 
     @register_command('click', '*')
-    def click_slot(self, *slots):
-        for slot_nr in slots:
-            try:
-                slot = self.inventory.window.slots[int(slot_nr)]
-                self.inventory.click_slot(slot)
-            except:
-                raise
+    def click_slots(self, *slots):
+        RunTask(self.inv.async.click_slots(*(int(nr) for nr in slots)),
+                self.event.reg_event_handler,
+                TaskChatter('Click %s' % str(slots), self.interact))
 
     @register_command('use')
     def activate_item(self):
@@ -265,15 +464,12 @@ class BatPlugin(PluginBase):
         self.interact.deactivate_item()
 
     @register_command('hold', '1?1')
-    def hold_item(self, item_id, meta=-1):
-        logger.info('[Hold item] %s:%s', item_id, meta)
-        hotbar_start = self.inventory.hotbar_start
-        found = self.inventory.find_slot(item_id, meta, hotbar_start)
-        if found:
-            self.inventory.select_active_slot(found.slot_nr - hotbar_start)
-            logger.info('Found item %i:%i in hotbar', item_id, meta)
-        else:
-            logger.warn('Could not find item %i:%i in hotbar', item_id, meta)
+    def hold_item(self, item_id, meta=None):
+        logger.info('[Hold item] %i:%s', item_id, meta)
+        RunTask(self.inv.async.hold_item((int(item_id), meta and int(meta))),
+                self.event.reg_event_handler,
+                TaskChatter('Hold item %i:%s' % (item_id, meta),
+                            self.interact))
 
     @register_command('hotbar', '*')
     def prepare_hotbar(self, *prepare_args):
@@ -310,12 +506,21 @@ class BatPlugin(PluginBase):
         logger.debug('appending to path: %s', str(coords))
 
     @register_command('craft', '11?1')
-    def craft_item(self, amount, item, meta=-1):
-        def cb(response):
+    def craft_item(self, amount, item, meta=None):
+        def cb(result):
             self.show_inventory()
-            logger.info('[Craft][%sx %s:%s] Response: %s',
-                        amount, item, meta, response)
-        recipe = self.craft.craft(item, meta, amount, parent=TaskCallback(cb))
+            logger.info('[Craft][%sx %s:%s] Success: %s',
+                        amount, item, meta, result)
+
+        def eb(error):
+            self.show_inventory()
+            logger.info('[Craft][%sx %s:%s] Error: %s',
+                        amount, item, meta, error)
+            logger.info('inv.window: %s',
+                        dir(self.inv.window))
+
+        recipe = self.craft.craft(item, meta, amount,
+                                  parent=TaskCallback(cb, eb))
         if recipe:
             logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s',
                         amount, item, meta, recipe.ingredients)
@@ -323,22 +528,14 @@ class BatPlugin(PluginBase):
             logger.info('[Craft][%sx %s:%s] Not crafting, no recipe found',
                         amount, item, meta)
 
-    def swap_slots_task(self, a, b):
-        cursor_slot = self.inventory.cursor_slot
-        window_slots = self.inventory.window.slots
-        click_slot = self.inventory.click_slot
-
-        if not cursor_slot.is_empty() or not window_slots[a].is_empty():
-            yield click_slot(a)
-
-        if not cursor_slot.is_empty() or not window_slots[b].is_empty():
-            yield click_slot(b)
-
-        if not cursor_slot.is_empty() or not window_slots[a].is_empty():
-            yield click_slot(a)
+    @register_command('do')
+    def do(self):
+        self.open_block((44, 3, -1105))
+        def cb(): self.craft_item(1, 276)
+        self.timers.reg_event_timer(1, cb, runs=1)
 
     @register_command('findblocks', '1?1?1?1?1')
-    def find_blocks(self, b_id, b_meta=-1, stop_at=10, min_y=0, max_y=256):
+    def find_blocks(self, b_id, b_meta=None, stop_at=10, min_y=0, max_y=256):
         prefix = '[Find Blocks][%s:%s]' % (b_id, b_meta)
         found = 0
         block_gen = self.iter_blocks(b_id, b_meta, min_y, max_y)
@@ -366,7 +563,7 @@ class BatPlugin(PluginBase):
 
         self.event.reg_event_handler('event_tick', find_next)
 
-    def iter_blocks(self, ids, metas=-1, min_y=0, max_y=256):
+    def iter_blocks(self, ids, metas=None, min_y=0, max_y=256):
         """
         Generates tuples of found blocks in the loaded world.
         Tuple format: ((x, y, z), (id, meta))
@@ -377,7 +574,7 @@ class BatPlugin(PluginBase):
         pos = self.clinfo.position
         # ensure correct types
         if isinstance(ids, int): ids = [ids]
-        if metas == -1: metas = []
+        if metas is None: metas = []
         elif isinstance(metas, int): metas = [metas]
 
         # approx. squared distance client - column center
@@ -387,7 +584,8 @@ class BatPlugin(PluginBase):
             dist_z = pos.z - (col_z*16 + 8)
             return dist_x * dist_x + dist_z * dist_z
 
-        logger.debug('%i cols to search in', len(self.world.columns))
+        logger.debug('[iter_blocks] %i cols to search in',
+                     len(self.world.columns))
 
         for (cx, cz), column in sorted(self.world.columns.items(),
                                        key=col_dist_sq):
