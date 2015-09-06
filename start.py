@@ -28,6 +28,7 @@ plugins = [
 
     ('bat', bat.BatPlugin),
     ('commands', command.CommandPlugin),
+    ('curses', curses.CursesPlugin),
 ]
 
 # login_credentials should contain a dict with 'username' and 'password'
