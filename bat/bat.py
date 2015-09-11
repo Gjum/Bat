@@ -99,12 +99,16 @@ class TaskChatter(object):
         self.interact = interact
 
     def on_success(self, data):
+        if data:
+            data = ': %s' % str(data)
+        else:
+            data = ''
         printer = self.interact.chat if self.interact else logger.info
-        printer('Task "%s" finished successfully: %s' % (self.name, data))
+        printer('Task "%s" finished successfully%s' % (self.name, data))
 
     def on_error(self, error):
         printer = self.interact.chat if self.interact else logger.warn
-        printer('Task "%s" failed: %s' % (self.name, error.args))
+        printer('Task "%s" failed: %s' % (self.name, error.args[0]))
 
 
 # noinspection PyUnresolvedReferences
