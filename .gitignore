@@ -2,3 +2,8 @@
 
 *.log
 /login_credentials.py
+
+/data/
+/ideas/
+/server/
+/spock/
