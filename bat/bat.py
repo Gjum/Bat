@@ -153,6 +153,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.pos_update_counter = 0
         self.checked_entities_this_tick = False
         self.nearest_player = None
+        self.aggro = False
 
     def debug_event(self, evt, data):
         data = getattr(data, 'data', data)
@@ -184,7 +185,7 @@ class BatPlugin(PluginBase):#, Reloadable):
                     self.nearest_player = entity
                     self.interact.look_at(entity_pos)
         # force field
-        if False and not self.checked_entities_this_tick:  # xxx reactivate
+        if self.aggro and not self.checked_entities_this_tick:
             for entity in self.entities.mobs.values():
                 if 5 * 5 > dist_sq(Vec(entity)):
                     self.interact.attack_entity(entity)
@@ -251,6 +252,10 @@ class BatPlugin(PluginBase):#, Reloadable):
 
         RunTask(task(), self.event.reg_event_handler,
                 TaskChatter('Reloader', self.interact))
+
+    @register_command('aggro', '1')
+    def set_aggro(self, val):
+        self.aggro = bool(val)
 
     @register_command('tpb', '3')
     def tp_block(self, coords):
