@@ -10,11 +10,12 @@ from spock.vector import Vector3 as Vec
 
 from bat.command import register_command
 
+import importlib, sys, types
+
 
 logger = logging.getLogger('spock')
 
-
-import importlib, sys, types
+reach_dist_sq = 3 * 3
 
 
 class Reloadable(object):
@@ -232,7 +233,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         # force field
         if self.aggro and not self.checked_entities_this_tick:
             for entity in self.entities.mobs.values():
-                if 5 * 5 > dist_sq(Vec(entity)):
+                if reach_dist_sq > dist_sq(Vec(entity)):
                     self.interact.attack_entity(entity)
             self.checked_entities_this_tick = True
 
@@ -326,8 +327,6 @@ class BatPlugin(PluginBase):#, Reloadable):
     def interact_entity(self, pos):
         get_target_dist = Vec(*pos).dist_sq
 
-        unreachable = lambda pos: self.clinfo.position.dist_sq(pos) > 4 * 4
-
         nearest_dist = float('inf')
         nearest_ent = None
 
@@ -340,7 +339,7 @@ class BatPlugin(PluginBase):#, Reloadable):
                              current_entity.__dict__)
                 continue  # has no position
 
-            if unreachable(current_pos):
+            if self.clinfo.position.dist_sq(current_pos) > reach_dist_sq:
                 continue
 
             current_dist = get_target_dist(current_pos)
