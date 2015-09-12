@@ -120,7 +120,6 @@ class BatPlugin(PluginBase):#, Reloadable):
                 'Craft', 'Commands', 'Inventory')
     events = {
         'chat_any': 'handle_chat',
-        'PLAY>Player Position': 'on_send_position',
         'cl_health_update': 'on_health_change',
         'event_tick': 'on_event_tick',
         'inv_open_window': 'show_inventory',
@@ -161,12 +160,6 @@ class BatPlugin(PluginBase):#, Reloadable):
     def handle_chat(self, evt, packet):
         logger.info('[Chat] <%s via %s> %s',
                     packet['name'], packet['sort'], packet['text'])
-
-    def on_send_position(self, evt, packet):
-        self.pos_update_counter += 1
-        if self.pos_update_counter > 20:
-            self.apply_gravity()
-            self.pos_update_counter = 0
 
     def on_entity_move(self, evt, packet):
         eid = packet.data['eid']
@@ -275,22 +268,6 @@ class BatPlugin(PluginBase):#, Reloadable):
             logger.warn('[Come] No player to teleport to')
         else:
             self.teleport(Vec(player))
-
-    @register_command('gravity')
-    def apply_gravity(self):
-        def can_stand_on(vec):
-            block_id, meta = self.world.get_block(*vec)
-            return 0 != block_id  # TODO do a proper collision test
-        pos = self.clinfo.position
-        below = Vec(0, -1, 0).iadd(pos).ifloor()
-        if can_stand_on(below):
-            return  # already on ground
-        for dy in range(int(below.y)):
-            block_pos = Vec(0, -dy, 0).iadd(below)
-            if can_stand_on(block_pos):
-                pos.init(.5, 1., .5).iadd(block_pos)
-                logger.debug('[Gravity] Corrected to y=%.2f', pos.y)
-                break
 
     @register_command('say', '*')
     def chat_say(self, *msgs):
@@ -474,7 +451,6 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('hold', '1?1')
     def hold_item(self, item_id, meta=None):
-        logger.info('[Hold item] %i:%s', item_id, meta)
         RunTask(self.inv.async.hold_item((int(item_id), meta and int(meta))),
                 self.event.reg_event_handler,
                 TaskChatter('Hold item %i:%s' % (item_id, meta),

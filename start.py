@@ -2,7 +2,7 @@ from spock import Client
 from spock.plugins.core import event, net, auth, timer, ticker
 from spock.plugins.helpers import (
     clientinfo, craft, entities, interact, inventory,
-    keepalive, movement, respawn, start, world)
+    keepalive, movement, physics, respawn, start, world)
 from bat import bat, chat, command, curses
 
 plugins = [
@@ -19,6 +19,7 @@ plugins = [
     ('inventory', inventory.InventoryPlugin),
     ('keepalive', keepalive.KeepalivePlugin),
     ('movement', movement.MovementPlugin),
+    ('physics', physics.PhysicsPlugin),
     ('respawn', respawn.RespawnPlugin),
     ('start', start.StartPlugin),
     ('world', world.WorldPlugin),
