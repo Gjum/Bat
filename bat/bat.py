@@ -123,7 +123,8 @@ class BatPlugin(PluginBase):#, Reloadable):
         'PLAY>Player Position': 'on_send_position',
         'cl_health_update': 'on_health_change',
         'event_tick': 'on_event_tick',
-        'inv_click_response': 'show_inventory',  # xxx remove
+        'inv_open_window': 'show_inventory',
+        'inv_click_response': 'show_inventory',  # xxx log clicked slot
     }
     # movement updates
     events.update({e: 'on_entity_move' for e in (
@@ -133,11 +134,9 @@ class BatPlugin(PluginBase):#, Reloadable):
     )})
     # logged events TODO remove
     events.update({e: 'debug_event' for e in (
-        'LOGIN<Login Success', 'PLAY<Player Position and Look',
-        'PLAY<Window Property', 'PLAY>Click Window', 'PLAY<Open Window',
-        'cl_join_game', 'cl_health_update',
-        'inv_open_window', 'inv_close_window', 'inv_win_prop',
-        'inv_held_item_change', 'inv_click_response',
+        'LOGIN<Login Success',
+        # TODO find out what /clear does
+        'PLAY<Window Property', 'inv_win_prop', 'inv_close_window',
     )})
 
     def __init__(self, ploader, settings):
