@@ -382,12 +382,13 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('showhot')
     def show_hotbar(self):
-        show_hotbar_slotcounter = 0
+        slot_counter = 0
         def cb():
-            nonlocal show_hotbar_slotcounter
-            self.inv.select_active_slot(show_hotbar_slotcounter % 9)
-            show_hotbar_slotcounter += 1
-        self.timers.reg_event_timer(0.5, cb, runs=10)
+            nonlocal slot_counter
+            self.inv.select_active_slot(slot_counter % 9)
+            logger.debug('%i: %s', slot_counter, self.inv.active_slot)
+            slot_counter += 1
+        self.timers.reg_event_timer(0.5, cb, runs=9)
 
     """drop{slot|item}
     @register_command('drops', '?1?s')
@@ -515,20 +516,8 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('craft', '11?1')
     def craft_item(self, amount, item, meta=None):
-        def cb(result):
-            self.show_inventory()
-            logger.info('[Craft][%sx %s:%s] Success: %s',
-                        amount, item, meta, result)
-
-        def eb(error):
-            self.show_inventory()
-            logger.info('[Craft][%sx %s:%s] Error: %s',
-                        amount, item, meta, error)
-            logger.info('inv.window: %s',
-                        dir(self.inv.window))
-
         recipe = self.craft.craft(item, meta, amount,
-                                  parent=TaskCallback(cb, eb))
+                                  parent=TaskChatter('Craft', self.interact))
         if recipe:
             logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s',
                         amount, item, meta, recipe.ingredients)
