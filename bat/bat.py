@@ -1,6 +1,7 @@
 import logging
 
 from collections import deque
+import random
 from spock.mcdata import constants
 from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
@@ -120,7 +121,6 @@ class BatPlugin(PluginBase):#, Reloadable):
                 'Craft', 'Commands', 'Inventory')
     events = {
         'chat_any': 'handle_chat',
-        'cl_health_update': 'on_health_change',
         'event_tick': 'on_event_tick',
         'inv_open_window': 'show_inventory',
         'inv_click_response': 'show_inventory',  # xxx log clicked slot
@@ -153,6 +153,59 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.nearest_player = None
         self.aggro = False
 
+        RunTask(self.eat_task(), self.event.reg_event_handler)
+
+    def eat_task(self):
+
+        def timeout(t, other_events):
+            timer_event = 'bat_timeout_%s' % random.random
+            def cb(*_):
+                self.event.emit(timer_event, {})
+
+            self.timers.reg_event_timer(t, cb, runs=1)
+            event, _ = yield timer_event, other_events
+            if event == timer_event:
+                raise TaskFailed('Timed out after %s' % t)
+
+        while 1:
+            yield 'cl_health_update'
+
+            health = self.clientinfo.health.health
+            food = self.clientinfo.health.food
+
+            def inv_has(item):
+                return self.inv.find_slot(item)
+
+            def eat_item(item):
+                yield timeout(2, self.inv.async.hold_item(364))
+                self.interact.activate_item()
+                yield timeout(2, 'inv_set_slot')
+
+            can_eat = food < 20
+            cannot_regen = food <= 16
+            cannot_sprint = food <= 6
+            starving = food <= 0
+            eat_steak = food <= 10 and inv_has(364)
+            eat_chicken = food <= 14 and inv_has(366) and not inv_has(364)
+            should_heal = health < 19 and cannot_regen
+
+            if should_heal or eat_chicken or eat_steak:
+                try:
+                    logger.info('Eating...')
+                    try:
+                        yield timeout(2, self.inv.async.hold_item(364))
+                    except TaskFailed:
+                        yield timeout(2, self.inv.async.hold_item(366))
+
+                    self.interact.activate_item()
+                    yield timeout(2, 'inv_set_slot')
+
+                except TaskFailed as e:
+                    logger.error('Could not eat fast enough: %s' % e.args[0])
+            elif starving:
+                logger.warn("I'm starving, bye!")
+                self.event.kill()  # disconnect
+
     def debug_event(self, evt, data):
         data = getattr(data, 'data', data)
         logger.debug('%s: %s', evt, data)
@@ -182,22 +235,6 @@ class BatPlugin(PluginBase):#, Reloadable):
                 if 5 * 5 > dist_sq(Vec(entity)):
                     self.interact.attack_entity(entity)
             self.checked_entities_this_tick = True
-
-    def on_health_change(self, *args):
-        health = self.clinfo.health.health
-        food = self.clinfo.health.food
-        can_regen = food >= 18
-        can_sprint = food > 6
-        starving = food <= 0
-
-        # TODO eating task
-        if food < 14:  # chicken restores full hunger bar
-            logger.info('Eating...')
-            self.hold_item(366)
-            self.activate_item()
-        elif starving:
-            logger.info("I'm starving, bye!")
-            self.event.kill()  # disconnect
 
     def on_event_tick(self, *args):
         self.checked_entities_this_tick = False
