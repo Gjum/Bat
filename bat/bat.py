@@ -430,15 +430,15 @@ class BatPlugin(PluginBase):#, Reloadable):
             self.event.reg_event_handler('inv_set_slot', handler)
     """
 
-    @register_command('plan')
-    def print_plan(self):
+    @register_command('plan', '?1')
+    def print_plan(self, dy=0):
         center = self.clinfo.position
         visible_blocks = set()
         msg = ''
-        for z in range(-5, 6, 1):
+        for dz in range(-5, 6, 1):
             msg += '\n'
-            for x in range(-5, 6, 1):
-                block_pos = Vec(x, -1, z).iadd(center)
+            for dx in range(-5, 6, 1):
+                block_pos = Vec(dx, dy, dz).iadd(center)
                 block_id, meta = self.world.get_block(*block_pos)
                 visible_blocks.add((block_id, meta))
 
@@ -449,14 +449,14 @@ class BatPlugin(PluginBase):#, Reloadable):
                 else:
                     msg += '%3i:%-2i ' % (block_id, meta)
 
-                if x == z == 0:  # mark bot position with brackets: [blockID]
-                    msg = msg[:-8] + '[%s]' % msg[-7:-1]
+                if dx == dz == 0:  # mark bot position with brackets: [blockID]
+                    msg = msg[:-8] + ('[%s]' % msg[-7:-1])
 
         for block_id, meta in sorted(visible_blocks):
             if block_id != 0:
                 display_name = mapdata.get_block(block_id, meta).display_name
-                print('%3i: %s' % (block_id, display_name))
-        print(msg)
+                logger.info('%3i: %s' % (block_id, display_name))
+        logger.info(msg)
 
     @register_command('click', '*')
     def click_slots(self, *slots):
