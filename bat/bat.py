@@ -1,21 +1,21 @@
 import logging
-
 from collections import deque
 import random
+import importlib
+import sys
+import types
+
 from spock.mcdata import constants
+from spock.mcdata.windows import Slot
 from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
-from spock.task import TaskCallback, TaskFailed, RunTask, accept
+from spock.task import TaskFailed, RunTask, accept
 from spock.vector import Vector3 as Vec
-
 from bat.command import register_command
-
-import importlib, sys, types
-
 
 logger = logging.getLogger('spock')
 
-reach_dist_sq = 3 * 3
+reach_dist_sq = 4 * 4
 
 
 class Reloadable(object):
@@ -272,6 +272,7 @@ class BatPlugin(PluginBase):#, Reloadable):
             self.timers.reg_event_timer(time, cb, runs=1)
             return 'sleep_over', accept
 
+        # TODO why not use logger.debug()?
         chat = lambda *texts: self.event.emit('chat_any', {
             'name': 'RELOADER', 'sort': 'TEST', 'text': ' '.join(texts)})
 
