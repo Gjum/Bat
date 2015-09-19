@@ -96,20 +96,20 @@ class TaskEnder(object):
 
 
 class TaskChatter(object):
-    def __init__(self, name, interact=None):
+    def __init__(self, name, chat=None):
         self.name = name
-        self.interact = interact
+        self.chat = chat
 
     def on_success(self, data):
         if data:
             data = ': %s' % str(data)
         else:
             data = ''
-        printer = self.interact.chat if self.interact else logger.info
+        printer = self.chat or logger.info
         printer('Task "%s" finished successfully%s' % (self.name, data))
 
     def on_error(self, error):
-        printer = self.interact.chat if self.interact else logger.warn
+        printer = self.chat or logger.warn
         printer('Task "%s" failed: %s' % (self.name, error.args[0]))
 
 
@@ -118,10 +118,10 @@ class BatPlugin(PluginBase):#, Reloadable):
     _persistent_attributes = ('path_queue', 'event')
 
     requires = ('Event', 'Net', 'Timers',
-                'ClientInfo', 'Entities', 'Interact', 'World',
+                'Chat', 'ClientInfo', 'Entities', 'Interact', 'World',
                 'Craft', 'Commands', 'Inventory')
     events = {
-        'chat_any': 'handle_chat',
+        'chat': 'handle_chat',
         'event_tick': 'on_event_tick',
         'inv_open_window': 'show_inventory',
         'inv_click_response': 'show_inventory',  # xxx log clicked slot
@@ -211,9 +211,10 @@ class BatPlugin(PluginBase):#, Reloadable):
         data = getattr(data, 'data', data)
         logger.debug('%s: %s', evt, data)
 
-    def handle_chat(self, evt, packet):
-        logger.info('[Chat] <%s via %s> %s',
-                    packet['name'], packet['sort'], packet['text'])
+    def handle_chat(self, evt, data):
+        text = data.get('text', '[Chat] <%s via %s> %s' %
+                        (data['name'], data['type'], data['message']))
+        logger.info('[Chat] %s', text)
 
     def on_entity_move(self, evt, packet):
         eid = packet.data['eid']
@@ -281,7 +282,7 @@ class BatPlugin(PluginBase):#, Reloadable):
             chat('after reload 234')
 
         RunTask(task(), self.event.reg_event_handler,
-                TaskChatter('Reloader', self.interact))
+                TaskChatter('Reloader', self.chat.chat))
 
     @register_command('aggro', '1')
     def set_aggro(self, val):
@@ -298,7 +299,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('tp', '3')
     def teleport(self, coords):
         self.clinfo.position.init(*coords)
-        # self.interact.chat('/tp %i %i %i' % coords))
+        # self.chat.chat('/tp %i %i %i' % coords))
 
     @register_command('come', '?e')
     def tp_to_player(self, player=None):
@@ -309,7 +310,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('say', '*')
     def chat_say(self, *msgs):
-        self.interact.chat(' '.join(msgs))
+        self.chat.chat(' '.join(msgs))
 
     @register_command('dig', '3')
     def dig_block(self, pos):
@@ -475,7 +476,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     def click_slots(self, *slots):
         RunTask(self.inv.async.click_slots(*(int(nr) for nr in slots)),
                 self.event.reg_event_handler,
-                TaskChatter('Click %s' % str(slots), self.interact))
+                TaskChatter('Click %s' % str(slots), self.chat.chat))
 
     @register_command('use')
     def activate_item(self):
@@ -490,7 +491,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         RunTask(self.inv.async.hold_item((int(item_id), meta and int(meta))),
                 self.event.reg_event_handler,
                 TaskChatter('Hold item %i:%s' % (item_id, meta),
-                            self.interact))
+                            self.chat.chat))
 
     @register_command('hotbar', '*')
     def prepare_hotbar(self, *prepare_args):
@@ -529,7 +530,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('craft', '11?1')
     def craft_item(self, amount, item, meta=None):
         recipe = self.craft.craft(item, meta, amount,
-                                  parent=TaskChatter('Craft', self.interact))
+                                  parent=TaskChatter('Craft', self.chat.chat))
         if recipe:
             logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s',
                         amount, item, meta, recipe.ingredients)

@@ -1,9 +1,9 @@
 from spock import Client
 from spock.plugins.core import event, net, auth, timer, ticker
 from spock.plugins.helpers import (
-    clientinfo, craft, entities, interact, inventory,
+    chat, clientinfo, craft, entities, interact, inventory,
     keepalive, movement, physics, respawn, start, world)
-from bat import bat, chat, command, curses
+from bat import bat, command, curses
 
 plugins = [
     ('auth', auth.AuthPlugin),
@@ -12,6 +12,7 @@ plugins = [
     ('ticker', ticker.TickerPlugin),
     ('timer', timer.TimerPlugin),
 
+    ('chat', chat.ChatPlugin),
     ('clientinfo', clientinfo.ClientInfoPlugin),
     ('craft', craft.CraftPlugin),
     ('entities', entities.EntityPlugin),
@@ -25,7 +26,6 @@ plugins = [
     ('world', world.WorldPlugin),
 
     ('bat', bat.BatPlugin),
-    ('chat', chat.ChatPlugin),
     ('commands', command.CommandPlugin),
 ]
 

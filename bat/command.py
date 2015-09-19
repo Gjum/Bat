@@ -1,3 +1,4 @@
+# TODO this module is a deprecated mess
 
 import logging
 logger = logging.getLogger('spock')
