@@ -123,8 +123,8 @@ class BatPlugin(PluginBase):#, Reloadable):
     events = {
         'chat': 'handle_chat',
         'event_tick': 'on_event_tick',
-        'inv_open_window': 'show_inventory',
-        'inv_click_response': 'show_inventory',  # xxx log clicked slot
+        'inventory_open_window': 'show_inventory',
+        'inventory_click_response': 'show_inventory',  # xxx log clicked slot
     }
     # movement updates
     events.update({e: 'on_entity_move' for e in (
@@ -136,7 +136,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     events.update({e: 'debug_event' for e in (
         'LOGIN<Login Success',
         # TODO find out what /clear does
-        'PLAY<Window Property', 'inv_win_prop', 'inv_close_window',
+        'PLAY<Window Property', 'inventory_win_prop', 'inventory_close_window',
     )})
 
     def __init__(self, ploader, settings):
@@ -180,7 +180,7 @@ class BatPlugin(PluginBase):#, Reloadable):
             def eat_item(item):
                 yield timeout(2, self.inv.async.hold_item(364))
                 self.interact.activate_item()
-                yield timeout(2, 'inv_set_slot')
+                yield timeout(2, 'inventory_set_slot')
 
             can_eat = food < 20
             cannot_regen = food <= 16
@@ -199,7 +199,7 @@ class BatPlugin(PluginBase):#, Reloadable):
                         yield timeout(2, self.inv.async.hold_item(366))
 
                     self.interact.activate_item()
-                    yield timeout(2, 'inv_set_slot')
+                    yield timeout(2, 'inventory_set_slot')
 
                 except TaskFailed as e:
                     logger.error('Could not eat fast enough: %s' % e.args[0])
@@ -441,7 +441,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
         handler = Closure(self, amount).handler
         if not handler():
-            self.event.reg_event_handler('inv_set_slot', handler)
+            self.event.reg_event_handler('inventory_set_slot', handler)
     """
 
     @register_command('plan', '?1')
