@@ -5,12 +5,11 @@ This projects aims to create a Minecraft client that can interact with its envir
 
 Based on [a modified version](https://github.com/Gjum/SpockBot/tree/bat) of [SpockBot](https://github.com/SpockBotMC/SpockBot).
 
-**This project is undergoing a large restructuring phase. Expect it to break.**
-
 Features
 --------
 
 - control via in-game chat commands
+- control via command-line interface (`curses`)
 - dig and place blocks, interact
 - pick up, hold, use items
 - move along pre-defined paths
