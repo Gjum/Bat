@@ -112,6 +112,17 @@ class TaskChatter(object):
         printer('Task "%s" failed: %s' % (self.name, error.args[0]))
 
 
+def slot_from_item(item):
+    if 2 != getattr(item, 'obj_type', None):
+        return None
+    meta = getattr(item, 'metadata', None)
+    if meta and 10 in meta:  # has its "slot" value set
+        typ, slot_data = meta[10]
+        if typ == 5:
+            return Slot(None, -1, **slot_data)
+    return None
+
+
 # noinspection PyUnresolvedReferences
 class BatPlugin(PluginBase):#, Reloadable):
     _persistent_attributes = ('path_queue', 'event')
@@ -124,6 +135,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         'event_tick': 'on_event_tick',
         'inventory_open_window': 'show_inventory',
         'inventory_click_response': 'show_inventory',  # xxx log clicked slot
+        'PLAY<Entity Metadata': 'on_entity_meta',  # xxx item foo
     }
     # movement updates
     events.update({e: 'on_entity_move' for e in (
@@ -152,6 +164,8 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.checked_entities_this_tick = False
         self.nearest_player = None
         self.aggro = False
+
+        self.items_to_look_at = [] # xxx item type recognition
 
         self.taskmanager.run_task(self.eat_task())
 
@@ -243,6 +257,34 @@ class BatPlugin(PluginBase):#, Reloadable):
         if len(self.entities.entities) > 300:
             logger.info("Too many entities, bye!")
             self.event.kill()  # disconnect
+
+        for item in self.items_to_look_at:
+            slot = slot_from_item(item)
+            pos = Vec(item)
+            logger.debug('ITEM at %s %s', pos, slot)
+        self.items_to_look_at.clear()
+
+    def on_entity_meta(self, event, packet):
+        eid = packet.data['eid']
+        if eid in self.entities.objects:
+            entity = self.entities.objects[eid]
+            if entity.obj_type == 2:
+                self.items_to_look_at.append(entity)
+
+    def find_dropped_items(self, wanted=None, near=None):
+        items = []
+        for item in self.entities.objects:
+            slot = self.slot_from_item(item)
+            if not slot:
+                continue
+            if near:
+                items.append((item, slot))
+            else:
+                yield (item, slot)
+        if near:  # not yielded yet, sort by distance
+            dist = near.dist_sq
+            for d, item, slot in sorted((dist(Vec(i)), i, s) for i, s in items):
+                yield (item, slot)
 
     @register_command('reload')
     def reload_now(self):  # xxx broken do not use
