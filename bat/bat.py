@@ -519,13 +519,10 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('pade', '3')
     def path_add_delta(self, delta):
         if len(self.path_queue) > 0:
-            pos = self.path_queue[-1]
+            pos = Vec(self.path_queue[-1])
         else:
             pos = self.clinfo.position
-            pos = [pos.x, pos.y, pos.z]
-        coords = [c+d for c, d in zip(pos, delta)]
-        self.path_queue.append(coords)
-        logger.debug('appending to path: %s', str(coords))
+        self.path_queue.append(pos + delta)
 
     @register_command('craft', '11?1')
     def craft_item(self, amount, item, meta=None):
@@ -537,12 +534,6 @@ class BatPlugin(PluginBase):#, Reloadable):
         else:
             logger.info('[Craft][%sx %s:%s] Not crafting, no recipe found',
                         amount, item, meta)
-
-    @register_command('do')
-    def do(self):
-        self.open_block((44, 3, -1105))
-        def cb(): self.craft_item(1, 276)
-        self.timers.reg_event_timer(1, cb, runs=1)
 
     @register_command('findblocks', '1?1?1?1?1')
     def find_blocks(self, b_id, b_meta=None, stop_at=10, min_y=0, max_y=256):
@@ -578,7 +569,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         Generates tuples of found blocks in the loaded world.
         Tuple format: ((x, y, z), (id, meta))
         Also generates None to indicate that another column (16*16*256 blocks)
-        has been searched. You can use them for pausing between chunks.
+        has been searched. You can use this for pausing between chunk columns.
         `ids` and `metas` can be single values.
         """
         pos = self.clinfo.position
@@ -590,8 +581,8 @@ class BatPlugin(PluginBase):#, Reloadable):
         # approx. squared distance client - column center
         def col_dist_sq(col_item):
             (col_x, col_z), col = col_item
-            dist_x = pos.x - (col_x*16 + 8)
-            dist_z = pos.z - (col_z*16 + 8)
+            dist_x = pos.x - (col_x * 16 + 8)
+            dist_z = pos.z - (col_z * 16 + 8)
             return dist_x * dist_x + dist_z * dist_z
 
         logger.debug('[iter_blocks] %i cols to search in',
@@ -614,6 +605,6 @@ class BatPlugin(PluginBase):#, Reloadable):
                                 yield ((x, y, z), (bid, bmeta))
             # When the client moves around, it never unloads chunks,
             # so sometimes there are thousands of columns to search in,
-            # which takes a while. By yielding None, we enable the caller
+            # which takes a while. By yielding None, we allow the caller
             # to do something else after each searched-in column.
             yield None
