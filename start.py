@@ -1,5 +1,5 @@
 from spock import Client
-from spock.plugins.core import event, net, auth, timer, ticker
+from spock.plugins.core import auth, event, net, taskmanager, timer, ticker
 from spock.plugins.helpers import (
     chat, clientinfo, craft, entities, interact, inventory,
     keepalive, movement, physics, respawn, start, world)
@@ -9,13 +9,14 @@ plugins = [
     ('auth', auth.AuthPlugin),
     ('event', event.EventPlugin),
     ('net', net.NetPlugin),
+    ('taskmanager', taskmanager.TaskManager),
     ('ticker', ticker.TickerPlugin),
     ('timer', timer.TimerPlugin),
 
     ('chat', chat.ChatPlugin),
     ('clientinfo', clientinfo.ClientInfoPlugin),
     ('craft', craft.CraftPlugin),
-    ('entities', entities.EntityPlugin),
+    ('entities', entities.EntitiesPlugin),
     ('interact', interact.InteractPlugin),
     ('inventory', inventory.InventoryPlugin),
     ('keepalive', keepalive.KeepalivePlugin),

@@ -9,7 +9,7 @@ from spock.mcdata import constants
 from spock.mcdata.windows import Slot
 from spock.mcmap import mapdata
 from spock.plugins.base import PluginBase
-from spock.task import TaskFailed, RunTask, accept
+from spock.plugins.tools.task import TaskFailed
 from spock.vector import Vector3 as Vec
 from bat.command import register_command
 
@@ -117,7 +117,7 @@ class TaskChatter(object):
 class BatPlugin(PluginBase):#, Reloadable):
     _persistent_attributes = ('path_queue', 'event')
 
-    requires = ('Event', 'Net', 'Timers',
+    requires = ('Event', 'Net', 'TaskManager', 'Timers',
                 'Chat', 'ClientInfo', 'Entities', 'Interact', 'World',
                 'Craft', 'Commands', 'Inventory')
     events = {
@@ -154,7 +154,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.nearest_player = None
         self.aggro = False
 
-        RunTask(self.eat_task(), self.event.reg_event_handler)
+        self.taskmanager.run_task(self.eat_task())
 
     def eat_task(self):
 
@@ -270,7 +270,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         def wait(time):
             cb = lambda *_: self.event.emit('sleep_over', {})
             self.timers.reg_event_timer(time, cb, runs=1)
-            return 'sleep_over', accept
+            return 'sleep_over'
 
         # TODO why not use logger.debug()?
         chat = lambda *texts: self.event.emit('chat_any', {
@@ -282,8 +282,8 @@ class BatPlugin(PluginBase):#, Reloadable):
             yield wait(1)
             chat('after reload 234')
 
-        RunTask(task(), self.event.reg_event_handler,
-                TaskChatter('Reloader', self.chat.chat))
+        self.taskmanager.run_task(task(),
+                                  TaskChatter('Reloader', self.chat.chat))
 
     @register_command('aggro', '1')
     def set_aggro(self, val):
@@ -475,9 +475,9 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('click', '*')
     def click_slots(self, *slots):
-        RunTask(self.inv.async.click_slots(*(int(nr) for nr in slots)),
-                self.event.reg_event_handler,
-                TaskChatter('Click %s' % str(slots), self.chat.chat))
+        self.taskmanager.run_task(
+            self.inv.async.click_slots(*(int(nr) for nr in slots)),
+            TaskChatter('Click %s' % str(slots), self.chat.chat))
 
     @register_command('use')
     def activate_item(self):
@@ -489,10 +489,9 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('hold', '1?1')
     def hold_item(self, item_id, meta=None):
-        RunTask(self.inv.async.hold_item((int(item_id), meta and int(meta))),
-                self.event.reg_event_handler,
-                TaskChatter('Hold item %i:%s' % (item_id, meta),
-                            self.chat.chat))
+        self.taskmanager.run_task(
+            self.inv.async.hold_item((int(item_id), meta and int(meta))),
+            TaskChatter('Hold item %i:%s' % (item_id, meta), self.chat.chat))
 
     @register_command('hotbar', '*')
     def prepare_hotbar(self, *prepare_args):
