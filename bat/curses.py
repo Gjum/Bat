@@ -1,5 +1,5 @@
 # TODO:
-# tab complete
+# tab complete, also using words from log
 # inventory window
 # simple! map window
 # - blocks
@@ -11,13 +11,12 @@ import sys
 import time
 
 from collections import namedtuple
-from spock import streamHandler
-from spock.mcp.mcdata import (
+from spockbot import streamHandler
+from spockbot.mcp.mcdata import (
     GM_ADVENTURE, GM_CREATIVE, GM_SPECTATOR, GM_SURVIVAL)
-from spock.plugins import PluginBase
-from spock.utils import pl_announce
+from spockbot.plugins.base import PluginBase, pl_announce
 
-logger = logging.getLogger('spock')
+logger = logging.getLogger('spockbot')
 
 PROMPT = '> '
 
@@ -63,12 +62,9 @@ class CursesLogHandler(logging.Handler):
 @pl_announce('Curses')
 class CursesPlugin(PluginBase):
     requires = ('ClientInfo', 'Entities', 'Event')
-    events = {
-        'event_tick': 'tick',
-        'kill': 'kill',
-        'disconnect': 'kill',
-        'AUTH_ERR': 'kill',
-    }
+    events = {'event_tick': 'tick'}
+    events.update({e: 'kill' for e in (
+        'event_kill', 'net_disconnect', 'auth_login_error')})
 
     def __init__(self, ploader, settings):
         super().__init__(ploader, settings)
@@ -76,6 +72,7 @@ class CursesPlugin(PluginBase):
         curses_log_handler = CursesLogHandler(self)
         logger.addHandler(curses_log_handler)
         logger.handlers.remove(streamHandler)
+        logger.setLevel(logging.DEBUG)
 
         self.status_text = 'SpockBot'
 

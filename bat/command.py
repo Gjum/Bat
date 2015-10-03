@@ -2,7 +2,7 @@
 import logging
 
 
-logger = logging.getLogger('spock')
+logger = logging.getLogger('spockbot')
 
 
 def register_command(cmd, arg_fmt=''):

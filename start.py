@@ -1,6 +1,6 @@
-from spock import Client
-from spock.plugins.core import auth, event, net, taskmanager, timer, ticker
-from spock.plugins.helpers import (
+from spockbot import Client
+from spockbot.plugins.core import auth, event, net, taskmanager, timer, ticker
+from spockbot.plugins.helpers import (
     chat, clientinfo, craft, entities, interact, inventory,
     keepalive, movement, physics, respawn, start, world)
 from bat import bat, command, curses
@@ -37,6 +37,6 @@ settings = {
     'start': { 'username': 'Bat', },
     'auth': { 'authenticated': False, },
 }
-client = Client(plugins = plugins, start = settings)
+client = Client(plugins=plugins, start=settings)
 
 client.start('localhost', 25565)

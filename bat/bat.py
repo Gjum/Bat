@@ -5,15 +5,14 @@ import importlib
 import sys
 import types
 
-from spock.mcdata import constants
-from spock.mcdata.windows import Slot
-from spock.mcmap import mapdata
-from spock.plugins.base import PluginBase
-from spock.plugins.tools.task import TaskFailed
-from spock.vector import Vector3 as Vec
+from spockbot.mcdata import blocks, constants
+from spockbot.mcdata.windows import Slot
+from spockbot.plugins.base import PluginBase
+from spockbot.plugins.tools.task import TaskFailed
+from spockbot.vector import Vector3 as Vec
 from bat.command import register_command
 
-logger = logging.getLogger('spock')
+logger = logging.getLogger('spockbot')
 
 reach_dist_sq = 4 * 4
 
@@ -469,7 +468,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
         for block_id, meta in sorted(visible_blocks):
             if block_id != 0:
-                display_name = mapdata.get_block(block_id, meta).display_name
+                display_name = blocks.get_block(block_id, meta).display_name
                 logger.info('%3i: %s' % (block_id, display_name))
         logger.info(msg)
 
