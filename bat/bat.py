@@ -104,11 +104,11 @@ class TaskChatter(object):
             data = ': %s' % str(data)
         else:
             data = ''
-        printer = self.chat or logger.info
+        printer = self.chat.chat or logger.info
         printer('Task "%s" finished successfully%s' % (self.name, data))
 
     def on_error(self, error):
-        printer = self.chat or logger.warn
+        printer = self.chat.chat or logger.warn
         printer('Task "%s" failed: %s' % (self.name, error.args[0]))
 
 
@@ -323,8 +323,7 @@ class BatPlugin(PluginBase):#, Reloadable):
             yield wait(1)
             chat('after reload 234')
 
-        self.taskmanager.run_task(task(),
-                                  TaskChatter('Reloader', self.chat.chat))
+        self.taskmanager.run_task(task(), TaskChatter('Reloader', self.chat))
 
     @register_command('aggro', '1')
     def set_aggro(self, val):
@@ -518,7 +517,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     def click_slots(self, *slots):
         self.taskmanager.run_task(
             self.inv.async.click_slots(*(int(nr) for nr in slots)),
-            TaskChatter('Click %s' % str(slots), self.chat.chat))
+            TaskChatter('Click %s' % str(slots), self.chat))
 
     @register_command('use')
     def activate_item(self):
@@ -532,7 +531,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     def hold_item(self, item_id, meta=None):
         self.taskmanager.run_task(
             self.inv.async.hold_item((int(item_id), meta and int(meta))),
-            TaskChatter('Hold item %i:%s' % (item_id, meta), self.chat.chat))
+            TaskChatter('Hold item %i:%s' % (item_id, meta), self.chat))
 
     @register_command('hotbar', '*')
     def prepare_hotbar(self, *prepare_args):
@@ -568,7 +567,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('craft', '11?1')
     def craft_item(self, amount, item, meta=None):
         recipe = self.craft.craft(item, meta, amount,
-                                  parent=TaskChatter('Craft', self.chat.chat))
+                                  parent=TaskChatter('Craft', self.chat))
         if recipe:
             logger.info('[Craft][%sx %s:%s] Crafting, recipe: %s',
                         amount, item, meta, recipe.ingredients)
