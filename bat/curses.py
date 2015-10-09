@@ -215,14 +215,23 @@ class CursesPlugin(PluginBase):
 
         if self.redraw_command:
             text = (PROMPT + self.command).ljust(self.cols - 1)
-            self.stdscr.addstr(self.rows - 1, 0, text)
+            try:
+                self.stdscr.addstr(self.rows - 1, 0, text)
+            except curses.error:
+                pass
 
         # always redraw status
         self.update_status_text()
         text = self.status_text[:self.cols].ljust(self.cols)
-        self.stdscr.addstr(self.rows - 2, 0, text, self.colors['status'])
+        try:
+            self.stdscr.addstr(self.rows - 2, 0, text, self.colors['status'])
+        except curses.error:
+            pass
 
-        self.stdscr.move(self.rows - 1, self.cursor_pos + len(PROMPT))
+        try:
+            self.stdscr.move(self.rows - 1, self.cursor_pos + len(PROMPT))
+        except curses.error:
+            return
         if self.stdscr.is_wintouched():
             self.stdscr.refresh()
 
