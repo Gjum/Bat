@@ -5,6 +5,8 @@ import random
 import sys
 import types
 
+from collections import deque
+
 from spockbot.mcdata import blocks, constants
 from spockbot.mcdata.windows import Slot
 from spockbot.plugins.base import PluginBase

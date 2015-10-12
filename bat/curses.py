@@ -11,8 +11,8 @@ import sys
 import time
 
 from collections import namedtuple
-from spockbot import streamHandler
-from spockbot.mcp.mcdata import (
+from spockbot import default_handler
+from spockbot.mcdata.constants import (
     GM_ADVENTURE, GM_CREATIVE, GM_SPECTATOR, GM_SURVIVAL)
 from spockbot.plugins.base import PluginBase, pl_announce
 
@@ -71,7 +71,7 @@ class CursesPlugin(PluginBase):
         self.set_uncaught_exc_handler()
         curses_log_handler = CursesLogHandler(self)
         logger.addHandler(curses_log_handler)
-        logger.handlers.remove(streamHandler)
+        logger.handlers.remove(default_handler)
         logger.setLevel(logging.DEBUG)
 
         self.status_text = 'SpockBot'
