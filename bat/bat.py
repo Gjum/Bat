@@ -445,17 +445,13 @@ class BatPlugin(PluginBase):#, Reloadable):
             slot_counter += 1
         self.timers.reg_event_timer(0.5, cb, runs=9)
 
-    """drop{slot|item}
     @register_command('drops', '?1?s')
     def drop_slot(self, slot=None, drop_stack='n'):
-        if type(slot) is str:  # TODO bad argument parsing
-            logger.debug('argh')
-            drop_stack = slot
-            slot = None
-        drop_stack = 'n' not in drop_stack
+        drop_stack = 'n' not in drop_stack.lower()
         logger.debug('Dropping: %s %s', slot, drop_stack)
         self.inv.drop_slot(slot, drop_stack)
 
+    """drop_item
     @register_command('drop', '1?1?1')
     def drop_item(self, item_id, meta=None, amount=1):
         logger.debug('[drop handler] Dropping %ix %i:%i', amount, item_id, meta)
