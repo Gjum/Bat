@@ -168,7 +168,7 @@ class CursesPlugin(PluginBase):
 
     def execute_command(self):
         command, *args = self.command.split(' ')
-        logger.info("[Command] %s Args: %s", command, args)
+        logger.debug("[Command] %s Args: %s", command, args)
         self.event.emit('cmd', {'cmd': command, 'args': args})
         self.event.emit('cmd_%s' % command, {'args': args})
 

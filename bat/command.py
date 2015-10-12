@@ -51,7 +51,7 @@ class CommandPlugin:
                         ' expected %s, got %s',
                         data['name'], data['sort'], cmd, arg_fmt, args)
         else:
-            logger.info('[Command] <%s via %s> %s %s',
+            logger.debug('[Command] <%s via %s> %s %s',
                         data['name'], data['sort'], cmd, formatted_args)
             handler(*formatted_args)
 
@@ -67,7 +67,7 @@ class CommandPlugin:
                         'expected %s, got %s',
                         data['name'], data['sort'], cmd, arg_fmt, args)
         else:
-            logger.info('[Command] <%s via %s> %s %s',
+            logger.debug('[Command] <%s via %s> %s %s',
                         data['name'], data['sort'], cmd, formatted_args)
             handler(*formatted_args)
 
