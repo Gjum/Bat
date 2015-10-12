@@ -20,6 +20,10 @@ logger = logging.getLogger('spockbot')
 
 PROMPT = '> '
 
+alnum = list(map(chr, range(ord('a'), ord('z') + 1)))
+alnum += list(map(chr, range(ord('A'), ord('Z') + 1)))
+alnum += list(map(str, range(10)))
+
 Record = namedtuple('Record', 'seconds levelname message')
 
 
@@ -254,10 +258,24 @@ class CursesPlugin(PluginBase):
             self.cursor_pos = 0
         elif c == curses.KEY_END:
             self.cursor_pos = len(self.command)
+
         elif c == curses.KEY_LEFT:
             self.cursor_pos = max(self.cursor_pos - 1, 0)
         elif c == curses.KEY_RIGHT:
             self.cursor_pos = min(self.cursor_pos + 1, len(self.command))
+
+        elif c == 547:  # ctrl+left
+            if self.cursor_pos > 0:
+                self.cursor_pos -= 1
+                while self.cursor_pos > 0 \
+                        and self.command[self.cursor_pos] in alnum:
+                    self.cursor_pos -= 1
+        elif c == 562:  # ctrl+right
+            if self.cursor_pos < len(self.command):
+                self.cursor_pos += 1
+                while self.cursor_pos < len(self.command) \
+                        and self.command[self.cursor_pos] in alnum:
+                    self.cursor_pos += 1
 
         # replace current command
         elif c == curses.KEY_UP:
