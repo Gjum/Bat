@@ -267,12 +267,19 @@ class CursesPlugin(PluginBase):
         elif c == 547:  # ctrl+left
             if self.cursor_pos > 0:
                 self.cursor_pos -= 1
-                while self.cursor_pos > 0 \
+                while self.cursor_pos >= 0 \
+                        and self.command[self.cursor_pos] not in alnum:
+                    self.cursor_pos -= 1
+                while self.cursor_pos >= 0 \
                         and self.command[self.cursor_pos] in alnum:
                     self.cursor_pos -= 1
+                self.cursor_pos += 1
         elif c == 562:  # ctrl+right
             if self.cursor_pos < len(self.command):
                 self.cursor_pos += 1
+                while self.cursor_pos < len(self.command) \
+                        and self.command[self.cursor_pos] not in alnum:
+                    self.cursor_pos += 1
                 while self.cursor_pos < len(self.command) \
                         and self.command[self.cursor_pos] in alnum:
                     self.cursor_pos += 1
