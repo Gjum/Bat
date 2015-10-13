@@ -245,6 +245,8 @@ class CursesPlugin(PluginBase):
         if c == curses.KEY_RESIZE:
             self.rows, self.cols = self.stdscr.getmaxyx()
             # xxx recalc split lines
+            self.redraw_lines = True
+            self.redraw_command = True
 
         # scroll logs
         elif c == curses.KEY_PPAGE:  # page up
@@ -254,6 +256,7 @@ class CursesPlugin(PluginBase):
             self.log_index -= self.rows - 3
             self.log_index = max(0, self.log_index)
 
+        # move cursor in command line
         elif c == curses.KEY_HOME:
             self.cursor_pos = 0
         elif c == curses.KEY_END:
@@ -299,6 +302,7 @@ class CursesPlugin(PluginBase):
                 self.command = ''
             self.cursor_pos = len(self.command)
 
+        # run current command
         elif c == curses.KEY_ENTER or c == 10:
             if self.command:
                 self.execute_command()
@@ -311,7 +315,8 @@ class CursesPlugin(PluginBase):
             self.cursor_pos = 0
             self.log_index = 0
 
-        elif c == curses.KEY_BACKSPACE or c == 127:
+        # modify current command
+        elif c == curses.KEY_BACKSPACE:
             if self.command and self.cursor_pos > 0:
                 self.command = self.command[:self.cursor_pos - 1] \
                                + self.command[self.cursor_pos:]
@@ -327,7 +332,7 @@ class CursesPlugin(PluginBase):
                 return  # TODO command line too short for command
             # try:
             self.command = self.command[:self.cursor_pos] \
-                           + chr(c) + self.command[self.cursor_pos:]
+                + chr(c) + self.command[self.cursor_pos:]
             self.cursor_pos += 1
             # except ValueError:
             #     pass
