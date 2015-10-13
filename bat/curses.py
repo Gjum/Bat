@@ -316,7 +316,7 @@ class CursesPlugin(PluginBase):
             self.log_index = 0
 
         # modify current command
-        elif c == curses.KEY_BACKSPACE:
+        elif c == curses.KEY_BACKSPACE or c == 127:
             if self.command and self.cursor_pos > 0:
                 self.command = self.command[:self.cursor_pos - 1] \
                                + self.command[self.cursor_pos:]
@@ -326,6 +326,8 @@ class CursesPlugin(PluginBase):
             if self.command and self.cursor_pos > 0:
                 self.command = self.command[:self.cursor_pos] \
                                + self.command[self.cursor_pos + 1:]
+
+        # TODO ctrl+del (512), ctrl+backspace (?)
 
         elif ord(' ') <= c < 127:  # write printable char
             if len(self.command) == self.cols - len(PROMPT) - 2:
