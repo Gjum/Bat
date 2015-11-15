@@ -5,6 +5,8 @@ This projects aims to create a Minecraft client that can interact with its envir
 
 Based on [SpockBot](https://github.com/SpockBotMC/SpockBot).
 
+![Bat's Curses interface](http://lunarco.de/minecraft/bat-curses.png)
+
 Features
 --------
 
