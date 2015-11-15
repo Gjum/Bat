@@ -11,6 +11,7 @@ from spockbot.mcdata import blocks, constants
 from spockbot.mcdata.windows import Slot
 from spockbot.plugins.base import PluginBase
 from spockbot.plugins.tools.task import TaskFailed
+from spockbot.plugins.tools.event import EVENT_UNREGISTER
 from spockbot.vector import Vector3 as Vec
 from bat.command import register_command
 
@@ -507,13 +508,13 @@ class BatPlugin(PluginBase):#, Reloadable):
                 slot = self.parent.inventory.find_slot(item_id, meta)
                 if slot is None:
                     logger.debug('[drop handler] All available dropped')
-                    return True  # nothing to drop left, cancel
+                    return EVENT_UNREGISTER  # nothing to drop left, cancel
                 self.amount -= slot.amount
                 self.parent.inventory.drop_slot(slot, drop_stack=True)
                 self.dropped_slot = slot
                 if self.amount <= 0:
                     logger.debug('[drop handler] All wanted dropped')
-                    return True  # done, delete handler
+                    return EVENT_UNREGISTER  # done, delete handler
 
         handler = Closure(self, amount).handler
         if not handler():
@@ -625,9 +626,9 @@ class BatPlugin(PluginBase):#, Reloadable):
                     found_block = next(block_gen)
                 except StopIteration:
                     logger.info("%s Done, found all %i", prefix, found)
-                    return True
+                    return EVENT_UNREGISTER
                 if found_block is None:  # another chunk searched, ...
-                    return False  # continue search in next tick
+                    return  # continue search in next tick
                 (x, y, z), (found_id, found_meta) = found_block
                 logger.info('%s Found %s:%s at (%i %i %i)',
                             prefix, found_id, found_meta, x, y, z)
@@ -635,7 +636,7 @@ class BatPlugin(PluginBase):#, Reloadable):
                 # also continue search if negative stop_at
                 if stop_at - found == 0:
                     logger.info('%s Done, found %i of them', prefix, found)
-                    return True
+                    return EVENT_UNREGISTER
 
         self.event.reg_event_handler('event_tick', find_next)
 
