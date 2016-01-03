@@ -271,7 +271,7 @@ class BatPlugin(PluginBase):#, Reloadable):
     def on_event_tick(self, *args):
         self.checked_entities_this_tick = False
 
-        if len(self.entities.entities) > 300:
+        if len(self.entities.entities) > 500:
             logger.info("Too many entities, bye!")
             self.event.kill()  # disconnect
 
@@ -405,8 +405,9 @@ class BatPlugin(PluginBase):#, Reloadable):
     def open_block(self, pos):
         self.interact.click_block(Vec(*pos).ifloor())
 
-    @register_command('ent', '3')
-    def interact_entity(self, pos):
+    @register_command('ent', '?3')
+    def interact_entity(self, pos=None):
+        if pos is None: pos = self.clinfo.position
         get_target_dist = Vec(*pos).dist_sq
 
         nearest_dist = float('inf')
@@ -421,7 +422,7 @@ class BatPlugin(PluginBase):#, Reloadable):
                              current_entity.__dict__)
                 continue  # has no position
 
-            if self.clinfo.position.dist_sq(current_pos) > reach_dist_sq:
+            if self.clinfo.eye_pos.dist_sq(current_pos) > reach_dist_sq:
                 continue
 
             current_dist = get_target_dist(current_pos)
