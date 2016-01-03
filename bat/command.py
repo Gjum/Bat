@@ -1,5 +1,6 @@
 # TODO this module is a deprecated mess
 import logging
+from spockbot.plugins.base import PluginBase
 
 
 logger = logging.getLogger('spockbot')
@@ -27,16 +28,19 @@ class CommandRegistry:
                 self.cmd_handlers[cmd_with_prefix] = (handler, arg_fmt)
 
 
-class CommandPlugin:
+class CommandPlugin(PluginBase):
+    requires = 'Entities'
+    events = {
+        'cmd': 'handle_cmd',
+        'chat_incoming': 'handle_chat',
+        'chat_outgoing': 'handle_chat',
+        'chat_text': 'handle_chat',
+    }
 
     def __init__(self, ploader, settings):
-        self.clinfo = ploader.requires('ClientInfo')
-        self.entities = ploader.requires('Entities')
-        self.event = ploader.requires('Event')
+        super().__init__(ploader, settings)
         self.registry = CommandRegistry()
         ploader.provides('Commands', self.registry)
-        ploader.reg_event_handler('cmd', self.handle_cmd)
-        ploader.reg_event_handler('chat_any', self.handle_chat)
 
     def handle_cmd(self, evt, data):
         cmd, args = data['cmd'], data['args']
@@ -57,7 +61,7 @@ class CommandPlugin:
 
     def handle_chat(self, evt, data):
         # TODO Can /tellraw send empty chat messages? Catch the exception.
-        cmd, *args = data['text'].split(' ')
+        cmd, *args = data['message'].split(' ')
         if cmd not in self.registry.cmd_handlers:
             return
         handler, arg_fmt = self.registry.cmd_handlers[cmd]
@@ -65,10 +69,10 @@ class CommandPlugin:
         if formatted_args is None:
             logger.warn('[Command] <%s via %s> Illegal arguments for %s: '
                         'expected %s, got %s',
-                        data['name'], data['sort'], cmd, arg_fmt, args)
+                        data['name'], data['type'], cmd, arg_fmt, args)
         else:
             logger.debug('[Command] <%s via %s> %s %s',
-                        data['name'], data['sort'], cmd, formatted_args)
+                        data['name'], data['type'], cmd, formatted_args)
             handler(*formatted_args)
 
     def format_args(self, args, arg_fmt, data):
