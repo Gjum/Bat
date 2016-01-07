@@ -107,12 +107,16 @@ class TaskChatter(object):
             data = ': %s' % str(data)
         else:
             data = ''
-        printer = self.chat.chat or logger.info
-        printer('Task "%s" finished successfully%s' % (self.name, data))
+        msg = 'Task "%s" finished successfully%s' % (self.name, data)
+        if self.chat:
+            self.chat.chat(msg)
+        logger.info(msg)
 
     def on_error(self, error):
-        printer = self.chat.chat or logger.warn
-        printer('Task "%s" failed: %s' % (self.name, error.args[0]))
+        msg = 'Task "%s" failed: %s' % (self.name, error.args[0])
+        if self.chat:
+            self.chat.chat(msg)
+        logger.warn(msg)
 
 
 def slot_from_item(item):
