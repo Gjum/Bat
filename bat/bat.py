@@ -352,6 +352,12 @@ class BatPlugin(PluginBase):#, Reloadable):
     def set_aggro(self, val):
         self.aggro = bool(val)
 
+    def on_syntax_error(self, e, cmd=None):
+        if cmd: cmd = '[%s] ' % cmd
+        logger.warn('%sSyntax error: %s', cmd, e)
+        logger.warn('%s  %s', cmd, e.text.rstrip())
+        logger.warn('%s  %s^', cmd, ' '*(e.offset-1))
+
     @register_command('exec', '*')
     def exec_python(self, *args):
         _results = []
@@ -359,9 +365,12 @@ class BatPlugin(PluginBase):#, Reloadable):
             _results.append(val)
 
         try:
-            exec(' '.join(args))
+            code = ' '.join(args).replace(';', '\n')
+            exec(code)
+        except SyntaxError as e:
+            self.on_syntax_error(e, cmd='exec')
         except Exception as e:
-            logger.warn('[exec] Error: %s', e)
+            logger.warn('[exec] Exception: %s', e)
 
         if _results:
             if len(_results) == 1:
@@ -372,8 +381,10 @@ class BatPlugin(PluginBase):#, Reloadable):
     def eval_python(self, *args):
         try:
             logger.info('[eval] %s', eval(' '.join(args)))
+        except SyntaxError as e:
+            self.on_syntax_error(e, cmd='eval')
         except Exception as e:
-            logger.warn('[eval] Error: %s', e)
+            logger.warn('[eval] Exception: %s', e)
 
     @register_command('tpb', '3')
     def tp_block(self, coords):
