@@ -152,7 +152,6 @@ class BatPlugin(PluginBase):#, Reloadable):
         'event_tick': 'on_event_tick',
         'inventory_open_window': 'show_inventory',
         'inventory_click_response': 'show_inventory',  # xxx log clicked slot
-        'PLAY<Entity Metadata': 'on_entity_meta',  # xxx item foo
     }
     # movement updates
     events.update({e: 'on_entity_move' for e in (
@@ -163,7 +162,8 @@ class BatPlugin(PluginBase):#, Reloadable):
     # logged events TODO remove
     events.update({e: 'debug_event' for e in (
         'LOGIN<Login Success',
-        # TODO find out what /clear does
+        'PLAY<Sign Editor Open',  # xxx sign placement and writing
+        # TODO find out what /clear does, also when a win is open
         'PLAY<Window Property', 'inventory_win_prop', 'inventory_close_window',
     )})
 
@@ -174,7 +174,6 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.clinfo = self.clientinfo
         self.inv = self.inventory
         self.commands.register_handlers(self)
-        # self.interact.auto_swing = False
 
         self.path_queue = deque()
         self.pos_update_counter = 0
@@ -182,8 +181,6 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.nearest_player = None
         self.aggro = False
         self.follow_eid = None  # should be uuid, eid can get reused
-
-        self.items_to_look_at = [] # xxx item type recognition
 
         self.taskmanager.run_task(self.eat_task())
 
@@ -253,7 +250,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         dist_sq = self.clinfo.position.dist_sq
 
         if eid in self.entities.players:
-            entity_pos = Vec(entity).iadd((0, constants.PLAYER_HEIGHT, 0))
+            entity_pos = Vec(entity).iadd((0, constants.PLAYER_EYE_HEIGHT, 0))
             if id(entity) == id(self.nearest_player):
                 self.interact.look_at(entity_pos)
             elif self.nearest_player is None:
@@ -279,22 +276,12 @@ class BatPlugin(PluginBase):#, Reloadable):
 
         if len(self.entities.entities) > 500:
             logger.info("Too many entities, bye!")
-            self.event.kill()  # disconnect
-
-        for item in self.items_to_look_at:
-            slot = slot_from_item(item)
-            pos = Vec(item)
-            logger.debug('ITEM at %s %s', pos, slot)
-        self.items_to_look_at.clear()
-
-    def on_entity_meta(self, event, packet):
-        eid = packet.data['eid']
-        if eid in self.entities.objects:
-            entity = self.entities.objects[eid]
-            if entity.obj_type == 2:
-                self.items_to_look_at.append(entity)
+            self.event.kill()
 
     def find_dropped_items(self, wanted=None, near=None):
+        """
+        If ``near`` is a Vector3, the items are sorted by distance to ``near``.
+        """
         items = []
         for item in self.entities.objects:
             slot = self.slot_from_item(item)
@@ -336,15 +323,11 @@ class BatPlugin(PluginBase):#, Reloadable):
             self.timers.reg_event_timer(time, cb, runs=1)
             return 'sleep_over'
 
-        # TODO why not use logger.debug()?
-        chat = lambda *texts: self.event.emit('chat_any', {
-            'name': 'RELOADER', 'sort': 'TEST', 'text': ' '.join(texts)})
-
         def task():
-            chat('before reload 123')
+            logger.debug('before reload 123')
             do_the_reload()
             yield wait(1)
-            chat('after reload 234')
+            logger.debug('after reload 234')
 
         self.taskmanager.run_task(task(), TaskChatter('Reloader', self.chat))
 
@@ -388,7 +371,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('tpb', '3')
     def tp_block(self, coords):
-        self.teleport(Vec(.5, 0, .5).iadd(coords))
+        self.teleport(Vec(*coords).ifloor().iadd(.5, 0, .5))
 
     @register_command('tpd', '3')
     def tp_delta(self, deltas):
@@ -397,7 +380,6 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('tp', '3')
     def teleport(self, coords):
         self.clinfo.position.init(*coords)
-        # self.chat.chat('/tp %i %i %i' % coords))
 
     @register_command('come', '?e')
     def tp_to_player(self, player=None):
@@ -424,7 +406,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('ent', '?3')
     def interact_entity(self, pos=None):
-        if pos is None: pos = self.clinfo.position
+        if pos is None: pos = self.clinfo.head
         get_target_dist = Vec(*pos).dist_sq
 
         nearest_dist = float('inf')
@@ -434,7 +416,7 @@ class BatPlugin(PluginBase):#, Reloadable):
             try:
                 current_pos = Vec(current_entity)
             except AttributeError:
-                logger.debug('Entity %s has no position %s',
+                logger.error('Entity %s has no position %s',
                              current_entity.__class__.__name__,
                              current_entity.__dict__)
                 continue  # has no position
@@ -445,15 +427,7 @@ class BatPlugin(PluginBase):#, Reloadable):
             current_dist = get_target_dist(current_pos)
             if nearest_dist > current_dist:  # closer to target pos
                 nearest_dist = current_dist
-                logger.debug('Entity %s is closer than %s',
-                             current_entity.__class__.__name__,
-                             nearest_ent.__class__.__name__)
                 nearest_ent = current_entity
-            else:
-                logger.debug('Entity %s isnt closer than %s %s',
-                             current_entity.__class__.__name__,
-                             nearest_ent.__class__.__name__,
-                             current_entity.__dict__)
 
         if nearest_ent:
             self.interact.use_entity(nearest_ent)
@@ -541,7 +515,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('plan', '?1')
     def print_plan(self, dy=0):
-        center = self.clinfo.position
+        center = self.clinfo.position.floor()
         visible_blocks = set()
         msg = ''
         for dz in range(-5, 6, 1):
@@ -558,13 +532,13 @@ class BatPlugin(PluginBase):#, Reloadable):
                 else:
                     msg += '%3i:%-2i ' % (block_id, meta)
 
-                if dx == dz == 0:  # mark bot position with brackets: [blockID]
+                if dx == dz == 0:  # mark bot position with brackets: [123:45]
                     msg = msg[:-8] + ('[%s]' % msg[-7:-1])
 
         for block_id, meta in sorted(visible_blocks):
             if block_id != 0:
                 display_name = blocks.get_block(block_id, meta).display_name
-                logger.info('%3i: %s' % (block_id, display_name))
+                logger.info('%3i:%-2i %s', block_id, meta, display_name)
         logger.info(msg)
 
     @register_command('click', '*')
@@ -587,21 +561,13 @@ class BatPlugin(PluginBase):#, Reloadable):
             self.inv.async.hold_item((int(item_id), meta and int(meta))),
             TaskChatter('Hold item %i:%s' % (item_id, meta), self.chat))
 
-    @register_command('hotbar', '*')
-    def prepare_hotbar(self, *prepare_args):
-        """ Puts items into the hotbar for quick access. """
-        logger.warn('TODO')
-
     @register_command('clone', '333')
     def clone_area(self, c_from, c_to, c_target):
         logger.warn('TODO')
 
-    @register_command('follow', '?e')
-    def follow_player(self, player=None):
-        if player is None:
-            logger.warn('[Follow] No player to follow')
-        else:
-            self.follow_eid = player.eid
+    @register_command('follow', 'e')
+    def follow_player(self, player):
+        self.follow_eid = player.eid
 
     @register_command('unfollow')
     def unfollow_player(self):
@@ -647,7 +613,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         block_gen = self.iter_blocks(b_id, b_meta, min_y, max_y)
 
         def find_next(*args):
-            nonlocal stop_at, found
+            nonlocal found
             chunks_this_tick = 0
             while chunks_this_tick < 100:  # look at 100 chunks per event_tick
                 chunks_this_tick += 1
@@ -698,8 +664,8 @@ class BatPlugin(PluginBase):#, Reloadable):
             for cy, section in enumerate(column.chunks):
                 if section and min_y // 16 <= cy <= max_y // 16:
                     for i, val in enumerate(section.block_data.data):
-                        by = i // 256
-                        y = by + 16 * cy
+                        block_y = i // 256
+                        y = block_y + 16 * cy
                         if min_y <= y <= max_y:
                             bid, bmeta = val >> 4, val & 0x0F
                             if bid in ids and (not metas or bmeta in metas):

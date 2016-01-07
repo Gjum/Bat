@@ -12,9 +12,9 @@ plugins.extend([
 # login_credentials should contain a dict with 'username' and 'password'
 #from login_credentials import settings
 settings = {
-    'start': { 'username': 'Bat', },
-    'auth': { 'authenticated': False, },
+    'start': {'username': 'Bat'},
+    'auth': {'online_mode': False},
 }
-client = Client(plugins=plugins, start=settings)
+client = Client(plugins=plugins, settings=settings)
 
 client.start('localhost', 25565)

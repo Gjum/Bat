@@ -56,7 +56,7 @@ class CommandPlugin(PluginBase):
                         data['name'], data['sort'], cmd, arg_fmt, args)
         else:
             logger.debug('[Command] <%s via %s> %s %s',
-                        data['name'], data['sort'], cmd, formatted_args)
+                         data['name'], data['sort'], cmd, formatted_args)
             handler(*formatted_args)
 
     def handle_chat(self, evt, data):
@@ -72,17 +72,19 @@ class CommandPlugin(PluginBase):
                         data['name'], data['type'], cmd, arg_fmt, args)
         else:
             logger.debug('[Command] <%s via %s> %s %s',
-                        data['name'], data['type'], cmd, formatted_args)
+                         data['name'], data['type'], cmd, formatted_args)
             handler(*formatted_args)
 
     def format_args(self, args, arg_fmt, data):
         if arg_fmt == '*':  # raw args, parsed by handler
             return args
+
         def try_cast_num(str_arg):
             try:
                 return int(str_arg)
             except ValueError:
                 return float(str_arg)  # raise ValueError if still not casted
+
         optional = 0
         pos = 0
         out = []
@@ -94,7 +96,7 @@ class CommandPlugin(PluginBase):
                 else:
                     out.append(args[pos])
                 pos += 1
-            elif '0' <= c <= '9':  # append numbers
+            elif '0' <= c <= '9':  # append number tuples
                 tuple_size = int(c)
                 try:
                     tuple_args = list(map(try_cast_num,
@@ -115,7 +117,9 @@ class CommandPlugin(PluginBase):
                 if 'uuid' not in data or data['uuid'] is None:
                     # not executed by a player
                     if optional <= 0:
-                        return None  # TODO return error message
+                        logger.warn(
+                            '[Command] No sender: not executed by player')
+                        return None
                 else:
                     wanted_uuid = data['uuid'].replace('-', '')
                     for player_entity in self.entities.players.values():
