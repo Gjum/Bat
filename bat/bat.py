@@ -181,6 +181,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.checked_entities_this_tick = False
         self.nearest_player = None
         self.aggro = False
+        self.follow_eid = None  # should be uuid, eid can get reused
 
         self.items_to_look_at = [] # xxx item type recognition
 
@@ -250,6 +251,7 @@ class BatPlugin(PluginBase):#, Reloadable):
         eid = packet.data['eid']
         entity = self.entities.entities[eid]
         dist_sq = self.clinfo.position.dist_sq
+
         if eid in self.entities.players:
             entity_pos = Vec(entity).iadd((0, constants.PLAYER_HEIGHT, 0))
             if id(entity) == id(self.nearest_player):
@@ -261,12 +263,16 @@ class BatPlugin(PluginBase):#, Reloadable):
                 if dist_sq(entity_pos) < dist_sq(Vec(self.nearest_player)):
                     self.nearest_player = entity
                     self.interact.look_at(entity_pos)
+
         # force field
         if self.aggro and not self.checked_entities_this_tick:
             for entity in self.entities.mobs.values():
                 if reach_dist_sq > dist_sq(Vec(entity)):
                     self.interact.attack_entity(entity)
             self.checked_entities_this_tick = True
+
+        if self.follow_eid and eid == self.follow_eid:
+            self.teleport(Vec(entity))
 
     def on_event_tick(self, *args):
         self.checked_entities_this_tick = False
@@ -578,6 +584,17 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('clone', '333')
     def clone_area(self, c_from, c_to, c_target):
         logger.warn('TODO')
+
+    @register_command('follow', '?e')
+    def follow_player(self, player=None):
+        if player is None:
+            logger.warn('[Follow] No player to follow')
+        else:
+            self.follow_eid = player.eid
+
+    @register_command('unfollow')
+    def unfollow_player(self):
+        self.follow_eid = None
 
     @register_command('preset')
     def path_reset(self):
