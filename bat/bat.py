@@ -8,7 +8,7 @@ import types
 
 from collections import deque
 
-from spockbot.mcdata import blocks, constants
+from spockbot.mcdata import blocks, constants, get_item_or_block
 from spockbot.mcdata.windows import Slot
 from spockbot.plugins.base import PluginBase
 from spockbot.plugins.tools.task import TaskFailed
@@ -480,35 +480,47 @@ class BatPlugin(PluginBase):#, Reloadable):
         logger.debug('Dropping: %s %s', slot, drop_stack)
         self.inv.drop_slot(slot, drop_stack)
 
-    """drop_item
-    @register_command('drop', '1?1?1')
-    def drop_item(self, item_id, meta=None, amount=1):
-        logger.debug('[drop handler] Dropping %ix %i:%i', amount, item_id, meta)
-        class Closure:
-            def __init__(self, parent, amount):
-                self.parent = parent
-                self.amount = amount
-                self.dropped_slot = None
+    @register_command('drop', '*')
+    def drop_items(self, amount, item_id=None, meta=None, *excess_args):
+        if excess_args:
+            logger.warn('Too many args for drop <amount> [id/name] [meta]')
 
-            def handler(self, evt=None, data={'slot_nr': None}):
-                if self.dropped_slot is not None and self.dropped_slot != data['slot_nr']:
-                    logger.debug('[drop handler] Not my slot')
-                    return  # ignore
-                slot = self.parent.inventory.find_slot(item_id, meta)
-                if slot is None:
-                    logger.debug('[drop handler] All available dropped')
-                    return EVENT_UNREGISTER  # nothing to drop left, cancel
-                self.amount -= slot.amount
-                self.parent.inventory.drop_slot(slot, drop_stack=True)
-                self.dropped_slot = slot
-                if self.amount <= 0:
-                    logger.debug('[drop handler] All wanted dropped')
-                    return EVENT_UNREGISTER  # done, delete handler
+        amount = int(amount)
+        try:
+            item_id = int(item_id)
+            meta = int(meta)
+        except:  # item_id is name string or None, or meta is None
+            pass
 
-        handler = Closure(self, amount).handler
-        if not handler():
-            self.event.reg_event_handler('inventory_set_slot', handler)
-    """
+        if item_id is None and meta is None:
+            item = self.inv.active_slot.item
+        else:
+            item = get_item_or_block(item_id, meta or 0)
+
+        stored = self.inv.total_stored(item)
+        if stored < amount:
+            logger.warn('Not enough %s stored (%i/%i)'
+                        % (item, stored, amount))
+            return
+
+        def drop_items_task(amount_left):
+            while amount_left > 0:
+                found_slot = self.inv.find_slot(item)
+                if found_slot is None:
+                    raise TaskFailed('No %s stored anymore' % item)
+
+                if amount_left >= found_slot.amount:
+                    amount_left -= found_slot.amount
+                    yield self.inv.async.drop_slot(found_slot, drop_stack=True)
+                else:
+                    logger.debug('Dropping %s single', amount_left)
+                    for i in range(amount_left):
+                        yield self.inv.async.drop_slot(found_slot)
+                        amount_left -= 1
+
+        self.taskmanager.run_task(drop_items_task(amount),
+                                  TaskChatter(chat=self.chat),
+                                  name='Drop %sx %s' % (amount, item))
 
     @register_command('plan', '?1')
     def print_plan(self, dy=0):
