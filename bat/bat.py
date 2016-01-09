@@ -99,11 +99,14 @@ class TaskEnder(object):
 
 
 class TaskChatter(object):
-    def __init__(self, name, chat=None):
+    def __init__(self, name=None, chat=None):
         self.name = name
         self.chat = chat
+        self.last_child = None  # set by TaskManager
 
     def on_success(self, data):
+        if not self.name:
+            self.name = self.last_child.name
         if data:
             data = ': %s' % str(data)
         else:
@@ -114,9 +117,11 @@ class TaskChatter(object):
         logger.info(msg)
 
     def on_error(self, error):
-        msg = 'Task "%s" failed: %s' % (self.name, error.args[0])
+        if not self.name:
+            self.name = self.last_child.name
+        msg = 'Task "%s" failed: %s' % (self.name, error)
         if self.chat:
-            self.chat.chat(msg)
+            self.chat.chat(msg.split('\n')[0])
         logger.warn(msg)
 
 
