@@ -405,26 +405,24 @@ class BatPlugin(PluginBase):#, Reloadable):
 
     @register_command('ent', '?3')
     def interact_entity(self, pos=None):
-        if pos is None: pos = self.clinfo.head
-        get_target_dist = Vec(*pos).dist_sq
+        if pos is None:
+            pos = self.clinfo.eye_pos
+        target_dist = Vec(*pos).dist_sq
 
         nearest_dist = float('inf')
         nearest_ent = None
-
         for current_entity in self.entities.entities.values():
+            # TODO check if entity can be interacted with
             try:
                 current_pos = Vec(current_entity)
-            except AttributeError:
-                logger.error('Entity %s has no position %s',
-                             current_entity.__class__.__name__,
-                             current_entity.__dict__)
-                continue  # has no position
+            except AttributeError:  # has no position
+                continue
 
             if self.clinfo.eye_pos.dist_sq(current_pos) > reach_dist_sq:
                 continue
 
-            current_dist = get_target_dist(current_pos)
-            if nearest_dist > current_dist:  # closer to target pos
+            current_dist = target_dist(current_pos)
+            if nearest_dist > current_dist:
                 nearest_dist = current_dist
                 nearest_ent = current_entity
 
