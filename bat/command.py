@@ -1,5 +1,6 @@
 # TODO this module is a deprecated mess
 import logging
+import traceback
 from spockbot.plugins.base import PluginBase
 
 
@@ -43,39 +44,31 @@ class CommandPlugin(PluginBase):
         ploader.provides('Commands', self.registry)
 
     def handle_cmd(self, evt, data):
-        cmd, args = data['cmd'], data['args']
-        if cmd not in self.registry.cmd_handlers:
-            return
-        handler, arg_fmt = self.registry.cmd_handlers[cmd]
-        data['name'] = '(Console)'
-        data['sort'] = '(Curses)'
-        formatted_args = self.format_args(args, arg_fmt, data)
-        if formatted_args is None:
-            logger.warn('[Command] <%s via %s> Illegal arguments for %s:'
-                        ' expected %s, got %s',
-                        data['name'], data['sort'], cmd, arg_fmt, args)
-        else:
-            logger.debug('[Command] <%s via %s> %s %s',
-                         data['name'], data['sort'], cmd, formatted_args)
-            handler(*formatted_args)
+        self.run_command(data['cmd'], data['args'])
 
     def handle_chat(self, evt, data):
         # TODO Can /tellraw send empty chat messages? Catch the exception.
         cmd, *args = data['message'].split(' ')
+        self.run_command(cmd, args, data['uuid'])
+
+    def run_command(self, cmd, args, uuid=None):
         if cmd not in self.registry.cmd_handlers:
             return
         handler, arg_fmt = self.registry.cmd_handlers[cmd]
-        formatted_args = self.format_args(args, arg_fmt, data)
+        formatted_args = self.format_args(args, arg_fmt, uuid)
         if formatted_args is None:
-            logger.warn('[Command] <%s via %s> Illegal arguments for %s: '
-                        'expected %s, got %s',
-                        data['name'], data['type'], cmd, arg_fmt, args)
+            logger.warn('[Command] Illegal arguments for %s:'
+                        ' expected %s, got %s',
+                        cmd, arg_fmt, args)
         else:
-            logger.debug('[Command] <%s via %s> %s %s',
-                         data['name'], data['type'], cmd, formatted_args)
-            handler(*formatted_args)
+            logger.debug('[Command] %s %s', cmd, formatted_args)
+            try:
+                handler(*formatted_args)
+            except:
+                logger.warn('[Command] %s %s failed: %s', cmd, formatted_args,
+                            traceback.format_exc().strip())
 
-    def format_args(self, args, arg_fmt, data):
+    def format_args(self, args, arg_fmt, uuid):
         if arg_fmt == '*':  # raw args, parsed by handler
             return args
 
@@ -114,21 +107,20 @@ class CommandPlugin(PluginBase):
             elif c == '?':  # append next if present
                 optional += 1
             elif c == 'e':  # player entity that executed the command
-                if 'uuid' not in data or data['uuid'] is None:
-                    # not executed by a player
-                    if optional <= 0:
-                        logger.warn(
-                            '[Command] No sender: not executed by player')
-                        return None
-                else:
-                    wanted_uuid = data['uuid'].replace('-', '')
+                if uuid:
+                    uuid = uuid.replace('-', '')
                     for player_entity in self.entities.players.values():
-                        if wanted_uuid == '%032x' % player_entity.uuid:
+                        if uuid == '%032x' % player_entity.uuid:
                             out.append(player_entity)
                             break
                     else:
                         if optional <= 0:
                             return None
+                else:  # not executed by a player
+                    if optional <= 0:
+                        logger.warn(
+                            '[Command] No sender: not executed by player')
+                        return None
             else:
                 logger.error('[Command] Unknown format: %s in %s at %i',
                              c, arg_fmt, pos)
