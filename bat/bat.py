@@ -119,10 +119,10 @@ class TaskChatter(object):
     def on_error(self, error):
         if not self.name:
             self.name = self.last_child.name
-        msg = 'Task "%s" failed: %s' % (self.name, error)
         if self.chat:
-            self.chat.chat(msg.split('\n')[0])
-        logger.warn(msg)
+            self.chat.chat('Task "%s" failed: %s' % (self.name, error))
+        logger.warn('Task "%s" failed: %s', self.name,
+                    traceback.format_exc().strip())
 
 
 def slot_from_item(item):
