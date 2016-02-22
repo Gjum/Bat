@@ -1,8 +1,9 @@
 import cursingspock
 from spockbot import Client
-from spockbot.plugins import default_plugins as plugins
+from spockbot.plugins import default_plugins
 from bat import bat, command
 
+plugins = default_plugins.copy()
 plugins.extend([
     ('bat', bat.BatPlugin),
     ('commands', command.CommandPlugin),
