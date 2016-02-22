@@ -4,8 +4,6 @@ import sys
 import traceback
 import types
 
-from collections import deque
-
 from spockbot.mcdata import blocks, get_item_or_block
 from spockbot.mcdata.windows import Slot
 from spockbot.plugins.base import PluginBase
@@ -166,9 +164,6 @@ class BatPlugin(PluginBase):#, Reloadable):
         self.inv = self.inventory
         self.commands.register_handlers(self)
 
-        self.path_queue = deque()
-        self.pos_update_counter = 0
-        self.follow_eid = None  # should be uuid, eid can get reused
 
     def debug_event(self, evt, data):
         data = getattr(data, 'data', data)
@@ -231,25 +226,6 @@ class BatPlugin(PluginBase):#, Reloadable):
             logger.debug('after reload 234')
 
         self.taskmanager.run_task(task(), TaskChatter('Reloader', self.chat))
-
-    @register_command('tpb', '3')
-    def tp_block(self, coords):
-        self.teleport(Vec(*coords).ifloor().iadd(.5, 0, .5))
-
-    @register_command('tpd', '3')
-    def tp_delta(self, deltas):
-        self.teleport(Vec(*deltas).iadd(self.clinfo.position))
-
-    @register_command('tp', '3')
-    def teleport(self, coords):
-        self.clinfo.position.init(*coords)
-
-    @register_command('come', '?e')
-    def tp_to_player(self, player=None):
-        if player is None:
-            logger.warn('[Come] No player to teleport to')
-        else:
-            self.teleport(Vec(player))
 
     @register_command('say', '*')
     def chat_say(self, *msgs):
@@ -437,36 +413,6 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('clone', '333')
     def clone_area(self, c_from, c_to, c_target):
         logger.warn('TODO')
-
-    @register_command('follow', 'e')
-    def follow_player(self, player):
-        self.follow_eid = player.eid
-
-    @register_command('unfollow')
-    def unfollow_player(self):
-        self.follow_eid = None
-
-    @register_command('preset')
-    def path_reset(self):
-        self.path_queue = deque()
-
-    @register_command('pgo')
-    def path_go(self):
-        if len(self.path_queue) > 0:
-            self.tp_block(self.path_queue.popleft())
-            self.timers.reg_event_timer(1, self.path_go, runs=1)
-
-    @register_command('padd', '3')
-    def path_add(self, coords):
-        self.path_queue.append(coords)
-
-    @register_command('pade', '3')
-    def path_add_delta(self, delta):
-        if len(self.path_queue) > 0:
-            pos = Vec(self.path_queue[-1])
-        else:
-            pos = self.clinfo.position
-        self.path_queue.append(pos + delta)
 
     @register_command('craft', '11?1')
     def craft_item(self, amount, item, meta=None):
