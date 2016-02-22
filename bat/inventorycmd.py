@@ -1,6 +1,6 @@
 import logging
 
-from bat.bat import TaskChatter
+from bat.taskutils import TaskChatter
 from bat.command import register_command
 from spockbot.mcdata import get_item_or_block
 from spockbot.plugins.base import pl_announce, PluginBase

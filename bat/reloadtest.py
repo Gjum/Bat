@@ -4,7 +4,7 @@ import logging
 import sys
 import types
 
-from bat.bat import TaskChatter
+from bat.taskutils import TaskChatter
 from spockbot.plugins.base import pl_announce, PluginBase
 
 
