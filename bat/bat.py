@@ -139,18 +139,6 @@ def slot_from_item(item):
     return None
 
 
-def by(key, data_list):
-    if len(data_list) <= 0:
-        return []
-    if isinstance(data_list, dict):
-        data_list = list(data_list.values())
-    first = data_list[0]
-    if isinstance(first, dict):
-        return [e[key] for e in data_list]
-    if hasattr(first, key):
-        return [getattr(e, key) for e in data_list]
-
-
 # noinspection PyUnresolvedReferences
 class BatPlugin(PluginBase):#, Reloadable):
     _persistent_attributes = ('path_queue', 'event')
@@ -345,29 +333,6 @@ class BatPlugin(PluginBase):#, Reloadable):
     @register_command('aggro', '1')
     def set_aggro(self, val):
         self.aggro = bool(val)
-
-    @register_command('exec', '*')
-    def exec_python(self, *args):
-        _results = []
-        def res(val):
-            _results.append(val)
-
-        try:
-            exec(' '.join(args).replace(';', '\n'))
-        except:
-            logger.warn('[exec] %s', traceback.format_exc().strip())
-
-        if _results:
-            if len(_results) == 1:
-                _results = _results[0]
-            logger.info('[exec] %s', _results)
-
-    @register_command('eval', '*')
-    def eval_python(self, *args):
-        try:
-            logger.info('[eval] %s', eval(' '.join(args)))
-        except:
-            logger.warn('[eval] %s', traceback.format_exc().strip())
 
     @register_command('tpb', '3')
     def tp_block(self, coords):
