@@ -1,12 +1,13 @@
 import cursingspock
 from spockbot import Client
 from spockbot.plugins import default_plugins
-from bat import bat, command, movecmd, pycmd, survival
+from bat import bat, blockfinder, command, movecmd, pycmd, survival
 
 plugins = default_plugins.copy()
 plugins.extend([
     ('bat', bat.BatPlugin),
     ('commands', command.CommandPlugin),
+    ('blockfinder', blockfinder.BlockFinderPlugin),
     ('pycmd', pycmd.PyCmdPlugin),
     ('movecmd', movecmd.MovementCommandsPlugin),
     ('survival', survival.SurvivalPlugin),
