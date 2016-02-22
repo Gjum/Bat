@@ -1,13 +1,12 @@
 import importlib
 import logging
-import random
 import sys
 import traceback
 import types
 
 from collections import deque
 
-from spockbot.mcdata import blocks, constants, get_item_or_block
+from spockbot.mcdata import blocks, get_item_or_block
 from spockbot.mcdata.windows import Slot
 from spockbot.plugins.base import PluginBase
 from spockbot.plugins.tools.task import TaskFailed
@@ -148,16 +147,9 @@ class BatPlugin(PluginBase):#, Reloadable):
                 'Craft', 'Commands', 'Inventory')
     events = {
         'chat': 'handle_chat',
-        'event_tick': 'on_event_tick',
         'inventory_open_window': 'show_inventory',
         'inventory_click_response': 'show_inventory',  # xxx log clicked slot
     }
-    # movement updates
-    events.update({e: 'on_entity_move' for e in (
-        'PLAY<Entity Relative Move',
-        'PLAY<Entity Look And Relative Move',
-        'PLAY<Entity Teleport',
-    )})
     # logged events TODO remove
     events.update({e: 'debug_event' for e in (
         'LOGIN<Login Success',
@@ -176,63 +168,7 @@ class BatPlugin(PluginBase):#, Reloadable):
 
         self.path_queue = deque()
         self.pos_update_counter = 0
-        self.checked_entities_this_tick = False
-        self.nearest_player = None
-        self.aggro = False
         self.follow_eid = None  # should be uuid, eid can get reused
-
-        self.taskmanager.run_task(self.eat_task())
-
-    def eat_task(self):
-
-        def timeout(t, other_events):
-            timer_event = 'bat_timeout_%s' % random.random
-            def cb(*_):
-                self.event.emit(timer_event, {})
-
-            self.timers.reg_event_timer(t, cb, runs=1)
-            event, _ = yield timer_event, other_events
-            if event == timer_event:
-                raise TaskFailed('Timed out after %s' % t)
-
-        while 1:
-            yield 'cl_health_update'
-
-            health = self.clientinfo.health.health
-            food = self.clientinfo.health.food
-
-            def inv_has(item):
-                return self.inv.find_slot(item)
-
-            def eat_item(item):
-                yield timeout(2, self.inv.async.hold_item(364))
-                self.interact.activate_item()
-                yield timeout(2, 'inventory_set_slot')
-
-            can_eat = food < 20
-            cannot_regen = food <= 16
-            cannot_sprint = food <= 6
-            starving = food <= 0
-            eat_steak = food <= 10 and inv_has(364)
-            eat_chicken = food <= 14 and inv_has(366) and not inv_has(364)
-            should_heal = health < 19 and cannot_regen
-
-            if should_heal or eat_chicken or eat_steak:
-                try:
-                    logger.info('Eating...')
-                    try:
-                        yield timeout(2, self.inv.async.hold_item(364))
-                    except TaskFailed:
-                        yield timeout(2, self.inv.async.hold_item(366))
-
-                    self.interact.activate_item()
-                    yield timeout(2, 'inventory_set_slot')
-
-                except TaskFailed as e:
-                    logger.error('Could not eat fast enough: %s' % e.args[0])
-            elif starving:
-                logger.warn("I'm starving, bye!")
-                self.event.kill()  # disconnect
 
     def debug_event(self, evt, data):
         data = getattr(data, 'data', data)
@@ -242,40 +178,6 @@ class BatPlugin(PluginBase):#, Reloadable):
         text = data.get('text', '[Chat] <%s via %s> %s' %
                         (data['name'], data['type'], data['message']))
         logger.info('[Chat] %s', text)
-
-    def on_entity_move(self, evt, packet):
-        eid = packet.data['eid']
-        entity = self.entities.entities[eid]
-        dist_sq = self.clinfo.position.dist_sq
-
-        if eid in self.entities.players:
-            entity_pos = Vec(entity).iadd((0, constants.PLAYER_EYE_HEIGHT, 0))
-            if id(entity) == id(self.nearest_player):
-                self.interact.look_at(entity_pos)
-            elif self.nearest_player is None:
-                self.nearest_player = entity
-                self.interact.look_at(entity_pos)
-            else:
-                if dist_sq(entity_pos) < dist_sq(Vec(self.nearest_player)):
-                    self.nearest_player = entity
-                    self.interact.look_at(entity_pos)
-
-        # force field
-        if self.aggro and not self.checked_entities_this_tick:
-            for entity in self.entities.mobs.values():
-                if reach_dist_sq > dist_sq(Vec(entity)):
-                    self.interact.attack_entity(entity)
-            self.checked_entities_this_tick = True
-
-        if self.follow_eid and eid == self.follow_eid:
-            self.teleport(Vec(entity))
-
-    def on_event_tick(self, *args):
-        self.checked_entities_this_tick = False
-
-        if len(self.entities.entities) > 500:
-            logger.info("Too many entities, bye!")
-            self.event.kill()
 
     def find_dropped_items(self, wanted=None, near=None):
         """
@@ -329,10 +231,6 @@ class BatPlugin(PluginBase):#, Reloadable):
             logger.debug('after reload 234')
 
         self.taskmanager.run_task(task(), TaskChatter('Reloader', self.chat))
-
-    @register_command('aggro', '1')
-    def set_aggro(self, val):
-        self.aggro = bool(val)
 
     @register_command('tpb', '3')
     def tp_block(self, coords):
