@@ -2,7 +2,7 @@ import cursingspock
 from spockbot import Client
 from spockbot.plugins import default_plugins
 from bat import bat, blockfinder, command, \
-    inventorycmd, movecmd, pycmd, survival
+    inventorycmd, interactcmd, movecmd, pycmd, survival
 
 plugins = default_plugins.copy()
 plugins.extend([
@@ -10,6 +10,7 @@ plugins.extend([
     ('commands', command.CommandPlugin),
     ('blockfinder', blockfinder.BlockFinderPlugin),
     ('pycmd', pycmd.PyCmdPlugin),
+    ('interactcmd', interactcmd.InteractCommandsPlugin),
     ('inventorycmd', inventorycmd.InventoryCommandsPlugin),
     ('movecmd', movecmd.MovementCommandsPlugin),
     ('survival', survival.SurvivalPlugin),
