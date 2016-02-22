@@ -1,6 +1,5 @@
 import importlib
 import logging
-import pprint
 import random
 import sys
 import traceback
@@ -121,8 +120,12 @@ class TaskChatter(object):
             self.name = self.last_child.name
         if self.chat:
             self.chat.chat('Task "%s" failed: %s' % (self.name, error))
-        logger.warn('Task "%s" failed: %s', self.name,
-                    traceback.format_exc().strip())
+
+        if isinstance(error, TaskFailed):
+            trace = str(error)
+        else:
+            trace = traceback.format_exc().strip()
+        logger.warn('Task "%s" failed: %s', self.name, trace)
 
 
 def slot_from_item(item):
@@ -146,8 +149,6 @@ def by(key, data_list):
         return [e[key] for e in data_list]
     if hasattr(first, key):
         return [getattr(e, key) for e in data_list]
-
-pp = pprint.PrettyPrinter(indent=4)
 
 
 # noinspection PyUnresolvedReferences
