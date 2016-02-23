@@ -12,7 +12,7 @@ logger = logging.getLogger('spockbot')
 
 @pl_announce('MoveCmd')
 class MovementCommandsPlugin(PluginBase):
-    requires = ('Timers', 'ClientInfo', 'Commands')
+    requires = ('Timers', 'ClientInfo', 'Entities', 'Commands')
 
     def __init__(self, ploader, settings):
         super(MovementCommandsPlugin, self).__init__(ploader, settings)
@@ -21,6 +21,11 @@ class MovementCommandsPlugin(PluginBase):
 
         self.path_queue = deque()
         self.follow_eid = None  # should be uuid, eid can get reused
+
+    def on_entity_move(self, evt, packet):
+        eid = packet.data['eid']
+        if self.follow_eid and eid == self.follow_eid:
+            self.teleport(Vector3(self.entities.entities[eid]))
 
     @register_command('tpb', '3')
     def tp_block(self, coords):

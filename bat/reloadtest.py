@@ -89,7 +89,7 @@ class ReloadTestPlugin(Reloadable, PluginBase):
         super(ReloadTestPlugin, self).__init__(ploader, settings)
         ploader.provides('ReloadTest', self)
 
-    def reload_now(self):
+    def reload_now(self, *_):
 
         def unregister_handlers():
             try:

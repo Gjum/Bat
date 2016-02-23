@@ -39,9 +39,10 @@ class PyCmdPlugin(PluginBase):
             'ret': self.returned.append,
         }
 
-    def cmd_exec(self, *args):
+    def cmd_exec(self, _, data):
         try:
-            exec(' '.join(args).replace(';', '\n'), globals=self.globals)
+            cmd = ' '.join(data['args']).replace(';', '\n')
+            exec(cmd, self.globals)
         except:
             logger.warn('[exec] %s', traceback.format_exc().strip())
 
@@ -49,10 +50,11 @@ class PyCmdPlugin(PluginBase):
             if len(self.returned) == 1:
                 self.returned = self.returned[0]
             logger.info('[exec] %s', self.returned)
+        self.returned = []
 
-    def cmd_eval(self, *args):
+    def cmd_eval(self, _, data):
         try:
-            result = eval(' '.join(args), globals=self.globals)
+            result = eval(' '.join(data['args']), self.globals)
             logger.info('[eval] %s', result)
         except:
             logger.warn('[eval] %s', traceback.format_exc().strip())

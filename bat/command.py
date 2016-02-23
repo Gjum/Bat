@@ -1,7 +1,7 @@
 # TODO this module is a deprecated mess
 import logging
 import traceback
-from spockbot.plugins.base import PluginBase
+from spockbot.plugins.base import pl_announce, PluginBase
 
 
 logger = logging.getLogger('spockbot')
@@ -29,6 +29,7 @@ class CommandRegistry:
                 self.cmd_handlers[cmd_with_prefix] = (handler, arg_fmt)
 
 
+@pl_announce('Commands')
 class CommandPlugin(PluginBase):
     requires = 'Entities'
     events = {

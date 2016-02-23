@@ -14,7 +14,7 @@ reach_dist_sq = 4 * 4
 
 @pl_announce('Survival')
 class SurvivalPlugin(PluginBase):
-    requires = ('Event', 'Timers',
+    requires = ('Event', 'TaskManager', 'Timers',
                 'ClientInfo', 'Entities', 'Interact', 'Inventory')
 
     events = {'event_tick': 'on_event_tick'}
@@ -69,9 +69,6 @@ class SurvivalPlugin(PluginBase):
                 if reach_dist_sq > dist_sq(Vector3(entity)):
                     self.interact.attack_entity(entity)
             self.checked_entities_this_tick = True
-
-        if self.follow_eid and eid == self.follow_eid:
-            self.teleport(Vector3(entity))
 
     def eat_task(self):
 
